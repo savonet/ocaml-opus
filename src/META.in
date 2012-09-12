@@ -1,0 +1,6 @@
+name="Opus"
+version="@VERSION@"
+description="OCaml bindings to Opus"
+requires="unix ogg"
+archive(byte) = "opus.cma"
+archive(native) = "opus.cmxa"

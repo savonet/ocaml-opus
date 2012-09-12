@@ -1,0 +1,60 @@
+# Copyright (c) 2003 by the Savonet team
+#
+# libopus bindings for OCaml.
+#
+# by Samuel Mimram
+
+# $Id$
+
+
+OCAMLMAKEFILE = OCamlMakefile
+
+OCAMLFIND = @OCAMLFIND@
+OCAMLFIND_LDCONF = @OCAMLFIND_LDCONF@
+OCAMLC = @OCAMLC@
+OCAMLOPT = @OCAMLOPT@
+OCAMLBEST = @OCAMLBEST@
+OCAMLMKTOP = @OCAMLMKTOP@
+OCAMLMKLIB = @OCAMLMKLIB@
+OCAMLCP = @OCAMLCP@
+OCAMLDEP = @OCAMLDEP@
+OCAMLLEX = @OCAMLLEX@
+OCAMLYACC = @OCAMLYACC@
+OCAMLDOC = @OCAMLDOC@
+AR = @AR@
+LATEX = @LATEX@
+DVIPS = @DVIPS@
+PS2PDF = @PS2PDF@
+OCAMLLIBPATH = @CAMLLIBPATH@
+CC = @CC@
+CFLAGS = -Wall @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+OCAMLDOCFLAGS = -stars
+
+SOURCES = opus_stubs.c opus.mli opus.ml ogg_demuxer_opus_decoder.mli ogg_demuxer_opus_decoder.ml
+RES_CLIB_SUF = _stubs
+RESULT = opus
+LIBINSTALL_FILES = $(wildcard *.mli *.cmi *.cma *.cmxa *.cmx *.a *.so)
+INCDIRS = @OCAMLOGG_INC@
+ACLIBS = @LIBS@
+CLIBS = $(ACLIBS:-l%=%)
+LDFLAGS = @LDFLAGS@
+LIBDIRS = $(LDFLAGS:-L%=%)
+NO_CUSTOM = yes
+OCAMLFLAGS = @OCAMLFLAGS@
+
+all: $(OCAMLBEST)
+
+byte: byte-code-library
+opt: native-code-library
+
+native-code-library: byte-code-library
+debug: debug-code-library
+
+install: libinstall
+
+uninstall: libuninstall
+
+update: uninstall install
+
+-include $(OCAMLMAKEFILE)
