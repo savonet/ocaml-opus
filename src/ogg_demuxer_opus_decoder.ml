@@ -66,8 +66,14 @@ let decoder os =
   let decode feed =
     let dec,_,_,buf,_ = init () in
     let packet = Ogg.Stream.get_packet !os in
-    let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
-    feed (Array.map (fun x -> Array.sub x 0 ret) buf)
+    try
+      let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
+      feed (Array.map (fun x -> Array.sub x 0 ret) buf)
+    with
+    | Opus.Invalid_packet ->
+      (* TODO: I don't understand why we always have an invalid packet at the
+         beginning... *)
+      raise Ogg.Not_enough_data
   in
   Ogg_demuxer.Audio
     { Ogg_demuxer.
