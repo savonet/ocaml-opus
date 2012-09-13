@@ -16,11 +16,35 @@
 #include <opus/opus.h>
 
 
-static inline void check(int ret)
+static void check(int ret)
 {
   if (ret < 0)
-    printf("ret: %d\n", ret);
-  assert(ret >= 0);
+    switch (ret)
+      {
+      case OPUS_BAD_ARG:
+        caml_invalid_argument("opus");
+
+      case OPUS_BUFFER_TOO_SMALL:
+        caml_raise_constant(*caml_named_value("opus_exn_buffer_too_small"));
+
+      case OPUS_INTERNAL_ERROR:
+        caml_raise_constant(*caml_named_value("opus_exn_internal_error"));
+
+      case OPUS_INVALID_PACKET:
+        caml_raise_constant(*caml_named_value("opus_exn_invalid_packet"));
+
+      case OPUS_UNIMPLEMENTED:
+        caml_raise_constant(*caml_named_value("opus_exn_unimplemented"));
+
+      case OPUS_INVALID_STATE:
+        caml_raise_constant(*caml_named_value("opus_exn_invalid_state"));
+
+      case OPUS_ALLOC_FAIL:
+        caml_raise_constant(*caml_named_value("opus_exn_alloc_fail"));
+
+      default:
+        caml_failwith("Unknown opus error");
+      }
 }
 
 #define Dec_val(v) (*(OpusDecoder**)Data_custom_val(v))
@@ -61,6 +85,18 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   CAMLreturn(ans);
 }
 
+CAMLprim value ocaml_opus_packet_check(value packet)
+{
+  CAMLparam1(packet);
+  ogg_packet *op = Packet_val(packet);
+  int ans = 0;
+
+  if (op->bytes >= 8 && !memcmp(op->packet, "OpusHead", 8))
+    ans = 1;
+
+  CAMLreturn(Val_bool(ans));
+}
+
 CAMLprim value ocaml_opus_decoder_channels(value packet)
 {
   CAMLparam1(packet);
@@ -73,10 +109,11 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   CAMLreturn(Val_int(ret));
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value buf, value _ofs, value _len)
+CAMLprim value ocaml_opus_decoder_decode_float(value _multistream, value _dec, value packet, value buf, value _ofs, value _len)
 {
   CAMLparam3(_dec, packet, buf);
   CAMLlocal1(chan);
+  int multistream = Bool_val(_multistream);
   ogg_packet *op = Packet_val(packet);
   OpusDecoder *dec = Dec_val(_dec);
   int32 data_len = op->bytes;
@@ -84,15 +121,22 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value b
   memcpy(data, op->packet, data_len);
   int ret;
   int chans = opus_packet_get_nb_channels(data);
-  assert(Wosize_val(buf) == chans);
+  if (Wosize_val(buf) != chans)
+    {
+      printf("chans: %d\n", chans);
+      caml_invalid_argument("Wrong number of channels.");
+    }
   int ofs = Int_val(_ofs);
   int len = Int_val(_len);
   float *pcm = malloc(chans * len * sizeof(float));
   int i, c;
 
   caml_enter_blocking_section();
-  /* TODO: what is the last argument exactly? */
-  ret = opus_decode_float(dec, data, data_len, pcm, len, 0);
+  if (multistream)
+    ret = opus_multistream_decode_float(dec, data, data_len, pcm, len, 0);
+  else
+    /* TODO: what is the last argument exactly? */
+    ret = opus_decode_float(dec, data, data_len, pcm, len, 0);
   caml_leave_blocking_section();
   free(data);
 
@@ -111,4 +155,10 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value b
       }
 
   CAMLreturn(Val_int(ret));
+}
+
+CAMLprim value ocaml_opus_decoder_decode_float_byte(value args)
+{
+  /* TODO */
+  assert(0);
 }

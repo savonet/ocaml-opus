@@ -42,6 +42,7 @@ let output_short chan n =
 let usage = "usage: opus2wav [options] source destination"
 
 let () =
+  Opus.init ();
   Arg.parse
     []
     (
@@ -67,8 +68,8 @@ let () =
     Printf.printf "Testing stream %nx.%!\n" serial ;
     let os = Ogg.Stream.create ~serial () in
     Ogg.Stream.put_page os page ;
-    let packet = Ogg.Stream.peek_packet os in
-    (* TODO: test header *)
+    let packet = Ogg.Stream.get_packet os in
+    assert (Opus.Packet.check packet);
     let chans = Opus.Packet.channels packet in
     Printf.printf "Found an opus stream with %d channels.\n%!" chans;
     os, chans
@@ -77,52 +78,49 @@ let () =
   Printf.printf "Creating decoder... %!";
   let dec = Opus.Decoder.create samplerate chans in
   Printf.printf "done.\n%!";
-  let tmpdst, oc = Filename.open_temp_file ~mode:[Open_binary] "opus2wav" ".raw" in
+
+  Printf.printf "Decoding...%!";
+  let samples = ref 0 in
+  let max_frame_size = 960*6 in
+  let buflen = max_frame_size in
+  let buf = Array.init chans (fun _ -> Array.create buflen 0.) in
+  let outbuf = Array.create chans ([||] : float array) in
   (
-    let buflen = 1024 in
-    let buf = Array.init chans (fun _ -> Array.create buflen 0.) in
-    Printf.printf "Decoding... %!";
     try
       while true do
-        let packet =
-          let rec fill os =
+        let rec packet () =
+          try
+            Ogg.Stream.get_packet os
+          with
+          | Ogg.Not_enough_data ->
             let page = Ogg.Sync.read sync in
-            try
-              (* We drop pages which are not for us.. *)
-              if Ogg.Page.serialno page = Ogg.Stream.serialno os then
-                Ogg.Stream.put_page os page;
-            with
-            | Ogg.Bad_data -> fill os (* Do not care about page that are not for us.. *)
-          in
-          let rec f () =
-            try
-              Ogg.Stream.get_packet os
-            with
-            | Ogg.Not_enough_data ->
-              fill os;
-              f ()
-          in
-          f ()
+            if Ogg.Page.serialno page = Ogg.Stream.serialno os then Ogg.Stream.put_page os page;
+            packet ()
         in
-        let len = Opus.Decoder.decode_float dec packet buf 0 buflen in
-        for i = 0 to len - 1 do
-          for c = 0 to chans - 1 do
-            let x = buf.(c).(i) in
-            let x = int_of_float (x *. 32767.) in
-            output_short oc x
-          done
+        let packet = packet () in
+        let len =
+          try
+            Opus.Decoder.decode_float dec packet buf 0 buflen
+          with
+          | Opus.Invalid_packet ->
+            Printf.printf "Invalid packet!\n%!";
+            0
+          | Invalid_argument e ->
+            Printf.printf "Invalid argument: %s\n%!" e;
+            0
+        in
+        for c = 0 to chans - 1 do
+          outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
         done
-      done;
-      close_out oc
+      done
     with
-    | Ogg.End_of_stream ->
-      close_out oc
+    | Ogg.End_of_stream -> ()
   );
   Printf.printf "done.\n%!";
+  Unix.close fd;
 
-  (* Do the wav stuff. *)
-  let datalen = (stat tmpdst).st_size in
-  let ic = open_in_bin tmpdst in
+  let len = Array.length outbuf.(0) in
+  let datalen = 2 * len in
   let oc = open_out_bin !dst in
   output_string oc "RIFF";
   output_int oc (4 + 24 + 8 + datalen);
@@ -137,18 +135,14 @@ let () =
   output_short oc 16; (* bits per sample *)
   output_string oc "data";
   output_int oc datalen;
-  Printf.printf "Tagging wav... %!";
-  let buflen = 256 * 1024 in
-  let buf = String.create buflen in
-  let r = ref 1 in
-  let tot = datalen in
-  while !r <> 0 do
-    r := input ic buf 0 buflen;
-    output oc buf 0 !r;
+
+  for i = 0 to len - 1 do
+    for c = 0 to chans - 1 do
+      let x = outbuf.(c).(i) in
+      let x = int_of_float (x *. 32767.) in
+      output_short oc x;
+    done
   done;
-  Printf.printf "done.\n%!";
-  close_in ic;
   close_out oc;
-  Unix.unlink tmpdst;
-  Printf.printf "\n";
+
   Gc.full_major ()
