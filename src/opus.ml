@@ -15,6 +15,8 @@ let () =
 
 let init () = ()
 
+let max_frame_size = 960*6
+
 module Packet = struct
   type t = Ogg.Stream.packet
 
@@ -28,11 +30,7 @@ module Decoder = struct
 
   external create : int -> int -> t = "ocaml_opus_decoder_create"
 
-  external decode_float : bool -> t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
+  external init : t -> int -> int -> unit = "ocaml_opus_decoder_init"
 
-  module Multistream = struct
-    let decode_float = decode_float true
-  end
-
-  let decode_float dec = decode_float false dec
+  external decode_float : t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 end

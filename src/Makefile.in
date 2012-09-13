@@ -30,6 +30,7 @@ CC = @CC@
 CFLAGS = -Wall @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 OCAMLDOCFLAGS = -stars
+ANNOTATE = true
 
 SOURCES = opus_stubs.c opus.mli opus.ml ogg_demuxer_opus_decoder.mli ogg_demuxer_opus_decoder.ml
 RES_CLIB_SUF = _stubs

@@ -14,6 +14,7 @@
 #include <ogg/ogg.h>
 #include <ocaml-ogg.h>
 #include <opus/opus.h>
+#include <opus/opus_multistream.h>
 
 
 static void check(int ret)
@@ -85,6 +86,22 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   CAMLreturn(ans);
 }
 
+CAMLprim value ocaml_opus_decoder_init(value _dec, value _samplerate, value _chans)
+{
+  CAMLparam1(_dec);
+  OpusDecoder *dec = Dec_val(_dec);
+  opus_int32 samplerate = Int_val(_samplerate);
+  int chans = Int_val(_chans);
+  int ret;
+
+  caml_enter_blocking_section();
+  ret = opus_decoder_init(dec, samplerate, chans);
+  caml_leave_blocking_section();
+
+  check(ret);
+  CAMLreturn(Val_unit);
+}
+
 CAMLprim value ocaml_opus_packet_check(value packet)
 {
   CAMLparam1(packet);
@@ -109,11 +126,10 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   CAMLreturn(Val_int(ret));
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float(value _multistream, value _dec, value packet, value buf, value _ofs, value _len)
+CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value buf, value _ofs, value _len)
 {
   CAMLparam3(_dec, packet, buf);
   CAMLlocal1(chan);
-  int multistream = Bool_val(_multistream);
   ogg_packet *op = Packet_val(packet);
   OpusDecoder *dec = Dec_val(_dec);
   int32 data_len = op->bytes;
@@ -132,11 +148,8 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _multistream, value _dec, v
   int i, c;
 
   caml_enter_blocking_section();
-  if (multistream)
-    ret = opus_multistream_decode_float(dec, data, data_len, pcm, len, 0);
-  else
-    /* TODO: what is the last argument exactly? */
-    ret = opus_decode_float(dec, data, data_len, pcm, len, 0);
+  /* TODO: what is the last argument exactly? */
+  ret = opus_decode_float(dec, data, data_len, pcm, len, 0);
   caml_leave_blocking_section();
   free(data);
 

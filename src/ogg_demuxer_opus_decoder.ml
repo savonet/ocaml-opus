@@ -19,17 +19,13 @@
  *
  *)
 
-(*
+let check = Opus.Packet.check
 
-let check _ = true
-
-let buflen = 1024
+let buflen = Opus.max_frame_size
 
 let decoder os =
   let decoder = ref None in
   let packet = ref None in
-  let packet2 = ref None in
-  let packet3 = ref None in
   let os = ref os in
   let init () =
     match !decoder with
@@ -41,41 +37,37 @@ let decoder os =
           packet := Some p; p
         | Some p -> p
       in
-      let samplerate = 44100 in
+      let samplerate = 48000 in
       let chans = Opus.Packet.channels packet in
-      let dec = Opus.Decoder.create 44100 chans in
-
-
+      let dec = Opus.Decoder.create 48000 chans in
       (* This buffer is created once. The call to Array.sub
        * below makes a fresh array out of it to pass to
        * liquidsoap. *)
       let chan _ = Array.make buflen 0. in
-      let buf = Array.init info.Opus.audio_channels chan in
-      (* let meta = Opus.Decoder.comments d in *)
-      let meta = [] in
-      decoder := Some (d,samplerate,channels,buf,meta);
-      d,info,buf,meta
-    | Some d -> d
+      let buf = Array.init chans chan in
+      (* TODO: read comments! *)
+      let meta = "?", [] in
+      decoder := Some (dec,samplerate,chans,buf,meta);
+      dec,samplerate,chans,buf,meta
+    | Some dec -> dec
   in
   let info () =
-    let (_,info,_,meta) = init () in
+    let (_,samplerate,chans,_,meta) = init () in
     { Ogg_demuxer.
-      channels = info.Opus.audio_channels;
-      sample_rate = info.Opus.audio_samplerate },meta
+      channels = chans;
+      sample_rate = samplerate },
+    meta
   in
   let restart new_os =
     os := new_os;
-    let (d,_,_,_) = init () in
-    Opus.Decoder.restart d
+    let (dec,sr,chans,_,_) = init () in
+    Opus.Decoder.init dec sr chans
   in
   let decode feed =
-    let decoder,_,buf,_ = init () in
-    try
-      let ret = Opus.Decoder.decode_pcm decoder !os buf 0 buflen in
-      feed (Array.map (fun x -> Array.sub x 0 ret) buf)
-    with
-    (* Apparently, we should hide this one.. *)
-    | Opus.False -> raise Ogg.Not_enough_data
+    let dec,_,_,buf,_ = init () in
+    let packet = Ogg.Stream.get_packet !os in
+    let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
+    feed (Array.map (fun x -> Array.sub x 0 ret) buf)
   in
   Ogg_demuxer.Audio
     { Ogg_demuxer.
@@ -87,6 +79,3 @@ let decoder os =
 
 let register () =
   Hashtbl.add Ogg_demuxer.ogg_decoders "opus" (check,decoder)
-*)
-
-let register () = ()

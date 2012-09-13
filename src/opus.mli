@@ -7,6 +7,10 @@ exception Alloc_fail
 
 val init : unit -> unit
 
+(** Maximal size of a frame in sample. Buffers for decoding are typically of
+    this size. *)
+val max_frame_size : int
+
 module Packet : sig
   type t = Ogg.Stream.packet
 
@@ -19,6 +23,9 @@ module Decoder : sig
   type t
 
   val create : int -> int -> t
+
+  (** Reinitialize a decoder. *)
+  val init : t -> int -> int -> unit
 
   val decode_float : t -> Packet.t -> float array array -> int -> int -> int
 end
