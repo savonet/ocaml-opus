@@ -1,0 +1,8 @@
+SOURCES = opus2wav.ml
+RESULT = opus2wav
+LIBS = unix str ogg opus
+INCDIRS = ../src @OCAMLOGG_INC@
+
+all: nc
+
+-include OCamlMakefile
