@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <ogg/ogg.h>
@@ -70,7 +71,7 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
 {
   CAMLparam0();
   CAMLlocal1(ans);
-  int32 sr = Int_val(_sr);
+  int32_t sr = Int_val(_sr);
   int chans = Int_val(_chans);
   int ret = 0;
   OpusDecoder *dec;
@@ -132,7 +133,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value b
   CAMLlocal1(chan);
   ogg_packet *op = Packet_val(packet);
   OpusDecoder *dec = Dec_val(_dec);
-  int32 data_len = op->bytes;
+  int32_t data_len = op->bytes;
   unsigned char *data = malloc(data_len);
   memcpy(data, op->packet, data_len);
   int ret;
