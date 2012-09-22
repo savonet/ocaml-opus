@@ -51,3 +51,13 @@ module Decoder = struct
 
   external decode_float : t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 end
+
+module Encoder = struct
+  type t
+
+  type application = Application_voip | Application_audio | Application_restricted_lowdelay
+
+  external create : int -> int -> application -> t = "ocaml_opus_encoder_create"
+
+  external encode_float : t -> float array array -> int -> int -> string = "ocaml_opus_encode_float"
+end

@@ -32,3 +32,13 @@ module Decoder : sig
 
   val decode_float : t -> Packet.t -> float array array -> int -> int -> int
 end
+
+module Encoder : sig
+type t
+
+  type application = Application_voip | Application_audio | Application_restricted_lowdelay
+
+  val create : int -> int -> application -> t
+
+  val encode_float : t -> float array array -> int -> int -> string
+end
