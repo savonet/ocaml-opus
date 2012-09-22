@@ -19,34 +19,41 @@
  *
  *)
 
-let check = Opus.Packet.check
+let check = Opus.Packet.check_header
 
 let buflen = Opus.max_frame_size
 
 let decoder os =
   let decoder = ref None in
-  let packet = ref None in
+  let packet1 = ref None in
+  let packet2 = ref None in
   let os = ref os in
   let init () =
     match !decoder with
     | None ->
-      let packet =
-        match !packet with
+      let packet1 =
+        match !packet1 with
         | None ->
           let p = Ogg.Stream.get_packet !os in
-          packet := Some p; p
+          packet1 := Some p; p
+        | Some p -> p
+      in
+      let packet2 =
+        match !packet2 with
+        | None ->
+          let p = Ogg.Stream.get_packet !os in
+          packet2 := Some p; p
         | Some p -> p
       in
       let samplerate = 48000 in
-      let chans = Opus.Packet.channels packet in
+      let chans = Opus.Packet.channels packet1 in
+      let meta = Opus.Packet.comments packet2 in
       let dec = Opus.Decoder.create 48000 chans in
       (* This buffer is created once. The call to Array.sub
        * below makes a fresh array out of it to pass to
        * liquidsoap. *)
       let chan _ = Array.make buflen 0. in
       let buf = Array.init chans chan in
-      (* TODO: read comments! *)
-      let meta = "?", [] in
       decoder := Some (dec,samplerate,chans,buf,meta);
       dec,samplerate,chans,buf,meta
     | Some dec -> dec
@@ -66,14 +73,8 @@ let decoder os =
   let decode feed =
     let dec,_,_,buf,_ = init () in
     let packet = Ogg.Stream.get_packet !os in
-    try
-      let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
-      feed (Array.map (fun x -> Array.sub x 0 ret) buf)
-    with
-    | Opus.Invalid_packet ->
-      (* TODO: I don't understand why we always have an invalid packet at the
-         beginning... *)
-      raise Ogg.Not_enough_data
+    let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
+    feed (Array.map (fun x -> Array.sub x 0 ret) buf)
   in
   Ogg_demuxer.Audio
     { Ogg_demuxer.

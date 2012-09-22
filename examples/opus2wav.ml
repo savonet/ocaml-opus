@@ -65,14 +65,23 @@ let () =
     let page = Ogg.Sync.read sync in
     assert (Ogg.Page.bos page);
     let serial = Ogg.Page.serialno page in
-    Printf.printf "Testing stream %nx.%!\n" serial ;
+    Printf.printf "Testing stream %nx.%!\n" serial;
     let os = Ogg.Stream.create ~serial () in
-    Ogg.Stream.put_page os page ;
+    Ogg.Stream.put_page os page;
     let packet = Ogg.Stream.get_packet os in
-    assert (Opus.Packet.check packet);
+    assert (Opus.Packet.check_header packet);
     let chans = Opus.Packet.channels packet in
     Printf.printf "Found an opus stream with %d channels.\n%!" chans;
     os, chans
+  in
+  let vendor, comments =
+    let page = Ogg.Sync.read sync in
+    Ogg.Stream.put_page os page;
+    let packet = Ogg.Stream.get_packet os in
+    let vendor, comments = Opus.Packet.comments packet in
+    Printf.printf "Vendor: %s\nComments:\n%!" vendor;
+    List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
+    vendor, comments
   in
   let samplerate = 48000 in
   Printf.printf "Creating decoder... %!";

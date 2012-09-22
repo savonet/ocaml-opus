@@ -17,12 +17,29 @@ let init () = ()
 
 let max_frame_size = 960*6
 
+external version_string : unit -> string = "ocaml_opus_version_string"
+
 module Packet = struct
   type t = Ogg.Stream.packet
 
-  external check : t -> bool = "ocaml_opus_packet_check"
+  external check_header : t -> bool = "ocaml_opus_packet_check_header"
 
   external channels : t -> int = "ocaml_opus_decoder_channels"
+
+  external comments : t -> string * string array = "ocaml_opus_comments"
+
+  let comments p =
+    let vendor, comments = comments p in
+    let comments =
+      Array.map
+        (fun s ->
+          let n = String.index s '=' in
+          String.sub s 0 n,
+          String.sub s (n+1) (String.length s - n - 1)
+        ) comments
+    in
+    let comments = Array.to_list comments in
+    vendor, comments
 end
 
 module Decoder = struct

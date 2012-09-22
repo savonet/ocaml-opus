@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <endian.h>
 
 #include <ogg/ogg.h>
 #include <ocaml-ogg.h>
@@ -47,6 +48,12 @@ static void check(int ret)
       default:
         caml_failwith("Unknown opus error");
       }
+}
+
+CAMLprim value ocaml_opus_version_string(value unit)
+{
+  CAMLparam0();
+  CAMLreturn(caml_copy_string(opus_get_version_string()));
 }
 
 #define Dec_val(v) (*(OpusDecoder**)Data_custom_val(v))
@@ -103,7 +110,7 @@ CAMLprim value ocaml_opus_decoder_init(value _dec, value _samplerate, value _cha
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value ocaml_opus_packet_check(value packet)
+CAMLprim value ocaml_opus_packet_check_header(value packet)
 {
   CAMLparam1(packet);
   ogg_packet *op = Packet_val(packet);
@@ -125,6 +132,43 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   check(ret);
 
   CAMLreturn(Val_int(ret));
+}
+
+CAMLprim value ocaml_opus_comments(value packet)
+{
+  CAMLparam1(packet);
+  CAMLlocal2(ans, comments);
+  ogg_packet *op = Packet_val(packet);
+  if (!(op->bytes >= 8 && !memcmp(op->packet, "OpusTags", 8)))
+    check(OPUS_INVALID_PACKET);
+  ans = caml_alloc_tuple(2);
+
+  /* TODO: check for buffer overflows */
+
+  int off = 8;
+  /* Vendor */
+  int32_t vendor_length = le32toh((int32_t)*(op->packet+off));
+  off += 4;
+  Store_field(ans, 0, caml_alloc_string(vendor_length));
+  memcpy(String_val(Field(ans,0)), op->packet+off, vendor_length);
+  off += vendor_length;
+
+  /* Comments */
+  int32_t comments_length = le32toh((int32_t)*(op->packet+off));
+  off += 4;
+  comments = caml_alloc_tuple(comments_length);
+  Store_field(ans, 1, comments);
+  int32_t i, len;
+  for(i = 0; i < comments_length; i++)
+    {
+      len = le32toh((int32_t)*(op->packet+off));
+      off += 4;
+      Store_field(comments, i, caml_alloc_string(len));
+      memcpy(String_val(Field(comments, i)), op->packet+off, len);
+      off += len;
+    }
+
+  CAMLreturn(ans);
 }
 
 CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value buf, value _ofs, value _len)
