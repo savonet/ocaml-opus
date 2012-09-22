@@ -71,8 +71,11 @@ let decoder os =
     Opus.Decoder.init dec sr chans
   in
   let decode feed =
-    let dec,_,_,buf,_ = init () in
+    let dec,_,chans,buf,_ = init () in
     let packet = Ogg.Stream.get_packet !os in
+    (* We ignore packet with wrong number of channels for now. *)
+    if Opus.Packet.channels packet <> chans then
+      raise Ogg.Not_enough_data;
     let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
     feed (Array.map (fun x -> Array.sub x 0 ret) buf)
   in

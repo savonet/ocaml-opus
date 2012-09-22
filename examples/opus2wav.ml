@@ -109,7 +109,14 @@ let () =
         let packet = packet () in
         let len =
           try
-            Opus.Decoder.decode_float dec packet buf 0 buflen
+            let c = Opus.Packet.channels packet in
+            if c <> chans then
+              (
+                Printf.printf "Ignoring packet with %d channels instead of %d.\n%!" c chans;
+                0
+              )
+            else
+              Opus.Decoder.decode_float dec packet buf 0 buflen
           with
           | Opus.Invalid_packet ->
             Printf.printf "Invalid packet!\n%!";

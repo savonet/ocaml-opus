@@ -183,10 +183,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value b
   int ret;
   int chans = opus_packet_get_nb_channels(data);
   if (Wosize_val(buf) != chans)
-    {
-      printf("chans: %d\n", chans);
-      caml_invalid_argument("Wrong number of channels.");
-    }
+    caml_invalid_argument("Wrong number of channels.");
   int ofs = Int_val(_ofs);
   int len = Int_val(_len);
   float *pcm = malloc(chans * len * sizeof(float));
