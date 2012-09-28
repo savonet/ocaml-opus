@@ -47,6 +47,8 @@ module Decoder = struct
 
   external create : int -> int -> t = "ocaml_opus_decoder_create"
 
+  let create ~samplerate ~channels = create samplerate channels
+
   external decode_float : t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 end
 

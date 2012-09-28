@@ -49,7 +49,7 @@ let decoder os =
       in
       let chans = Opus.Packet.channels packet1 in
       let meta = Opus.Packet.comments packet2 in
-      let dec = Opus.Decoder.create !decoder_samplerate chans in
+      let dec = Opus.Decoder.create ~samplerate:!decoder_samplerate ~channels:chans in
       (* This buffer is created once. The call to Array.sub
        * below makes a fresh array out of it to pass to
        * liquidsoap. *)
@@ -69,7 +69,7 @@ let decoder os =
   let restart new_os =
     os := new_os;
     let (dec,chans,buf,meta) = init () in
-    let dec = Opus.Decoder.create !decoder_samplerate chans in
+    let dec = Opus.Decoder.create ~samplerate:!decoder_samplerate ~channels:chans in
     decoder := Some (dec,chans,buf,meta)
   in
   let decode feed =

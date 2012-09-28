@@ -84,7 +84,7 @@ let () =
   in
   let samplerate = 48000 in
   Printf.printf "Creating decoder... %!";
-  let dec = Opus.Decoder.create samplerate chans in
+  let dec = Opus.Decoder.create ~samplerate ~channels:chans in
   Printf.printf "done.\n%!";
 
   Printf.printf "Decoding...%!";
