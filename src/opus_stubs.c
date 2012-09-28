@@ -10,12 +10,28 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <endian.h>
 
 #include <ogg/ogg.h>
 #include <ocaml-ogg.h>
 #include <opus/opus.h>
 #include <opus/opus_multistream.h>
+
+#ifdef BIGENDIAN
+// Thank you, FFMPEG :-)
+static inline opus_uint16 bswap_32(opus_uint16 x)
+{
+  unsigned tmp;
+  __asm__("%1 = %0 >> 8 (V);      \n\t"
+          "%0 = %0 << 8 (V);      \n\t"
+          "%0 = %0 | %1;          \n\t"
+          "%0 = PACK(%0.L, %0.H); \n\t"
+          : "+d"(x), "=&d"(tmp));
+  return x;
+}
+#define length_to_native(x) bswap_32(x)
+#else
+#define length_to_native(x) x
+#endif
 
 
 static void check(int ret)
@@ -147,21 +163,21 @@ CAMLprim value ocaml_opus_comments(value packet)
 
   int off = 8;
   /* Vendor */
-  int32_t vendor_length = le32toh((int32_t)*(op->packet+off));
+  opus_int32 vendor_length = length_to_native((opus_int32)*(op->packet+off));
   off += 4;
   Store_field(ans, 0, caml_alloc_string(vendor_length));
   memcpy(String_val(Field(ans,0)), op->packet+off, vendor_length);
   off += vendor_length;
 
   /* Comments */
-  int32_t comments_length = le32toh((int32_t)*(op->packet+off));
+  opus_int32 comments_length = length_to_native((opus_int32)*(op->packet+off));
   off += 4;
   comments = caml_alloc_tuple(comments_length);
   Store_field(ans, 1, comments);
-  int32_t i, len;
+  opus_int32 i, len;
   for(i = 0; i < comments_length; i++)
     {
-      len = le32toh((int32_t)*(op->packet+off));
+      len = length_to_native((opus_int32)*(op->packet+off));
       off += 4;
       Store_field(comments, i, caml_alloc_string(len));
       memcpy(String_val(Field(comments, i)), op->packet+off, len);
@@ -260,7 +276,7 @@ CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _applica
 {
   CAMLparam0();
   CAMLlocal1(ans);
-  int32_t sr = Int_val(_sr);
+  opus_int32 sr = Int_val(_sr);
   int chans = Int_val(_chans);
   int ret = 0;
   int app = int_of_application(_application);

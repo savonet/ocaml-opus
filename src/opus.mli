@@ -5,11 +5,11 @@ exception Unimplemented
 exception Invalid_state
 exception Alloc_fail
 
-val init : unit -> unit
-
 (** Maximal size of a frame in sample. Buffers for decoding are typically of
     this size. *)
 val max_frame_size : int
+
+val version_string : string
 
 module Packet : sig
   type t = Ogg.Stream.packet

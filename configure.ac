@@ -8,6 +8,14 @@ AC_BASE_CHECKS()
 PKG_PROG_PKG_CONFIG()
 PKG_CONFIG_CHECK_MODULE([opus])
 
+# Include a config.h
+AC_CONFIG_HEADERS([config.h:config.h.in])
+# Include it
+CFLAGS="$CFLAGS -I.."
+
+# Check endianess
+AC_C_BIGENDIAN(AC_DEFINE([BIGENDIAN], [1], [The target is big endian]),[])
+
 AC_ARG_WITH([ogg-dir],AS_HELP_STRING([--with-ogg-dir=path],[use "path" as the location of ocaml-ogg (autodetected by default)]))
 if test -z "$with_ogg_dir"; then
   AC_MSG_CHECKING(for ocaml-ogg)

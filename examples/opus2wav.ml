@@ -42,7 +42,6 @@ let output_short chan n =
 let usage = "usage: opus2wav [options] source destination"
 
 let () =
-  Opus.init ();
   Arg.parse
     []
     (
