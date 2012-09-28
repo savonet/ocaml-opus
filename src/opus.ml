@@ -13,7 +13,7 @@ let () =
   Callback.register_exception "opus_exn_invalid_state" Invalid_state;
   Callback.register_exception "opus_exn_alloc_fail" Alloc_fail
 
-let max_frame_size = 960*6
+let recommended_frame_size = 960*6
 
 external version_string : unit -> string = "ocaml_opus_version_string"
 

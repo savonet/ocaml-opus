@@ -21,7 +21,7 @@
 
 let check = Opus.Packet.check_header
 
-let buflen = Opus.max_frame_size
+let buflen = Opus.recommended_frame_size
 
 let decoder_samplerate = ref 48000
 

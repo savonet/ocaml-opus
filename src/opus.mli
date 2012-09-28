@@ -5,9 +5,9 @@ exception Unimplemented
 exception Invalid_state
 exception Alloc_fail
 
-(** Maximal size of a frame in sample. Buffers for decoding are typically of
+(** Recommended size of a frame in sample. Buffers for decoding are typically of
     this size. *)
-val max_frame_size : int
+val recommended_frame_size : int
 
 val version_string : string
 
