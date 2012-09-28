@@ -27,9 +27,6 @@ module Decoder : sig
   (** Create a decoder with given samplerate an number of channels. *)
   val create : int -> int -> t
 
-  (** Reinitialize a decoder (this is not needed after [create]). *)
-  val init : t -> int -> int -> unit
-
   val decode_float : t -> Packet.t -> float array array -> int -> int -> int
 end
 

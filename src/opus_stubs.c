@@ -110,22 +110,6 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   CAMLreturn(ans);
 }
 
-CAMLprim value ocaml_opus_decoder_init(value _dec, value _samplerate, value _chans)
-{
-  CAMLparam1(_dec);
-  OpusDecoder *dec = Dec_val(_dec);
-  opus_int32 samplerate = Int_val(_samplerate);
-  int chans = Int_val(_chans);
-  int ret;
-
-  caml_enter_blocking_section();
-  ret = opus_decoder_init(dec, samplerate, chans);
-  caml_leave_blocking_section();
-
-  check(ret);
-  CAMLreturn(Val_unit);
-}
-
 CAMLprim value ocaml_opus_packet_check_header(value packet)
 {
   CAMLparam1(packet);

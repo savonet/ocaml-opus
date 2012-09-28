@@ -67,8 +67,9 @@ let decoder os =
   in
   let restart new_os =
     os := new_os;
-    let (dec,sr,chans,_,_) = init () in
-    Opus.Decoder.init dec sr chans
+    let (dec,sr,chans,buf,meta) = init () in
+    let dec = Opus.Decoder.create 48000 chans in
+    decoder := Some (dec,sr,chans,buf,meta)
   in
   let decode feed =
     let dec,_,chans,buf,_ = init () in
