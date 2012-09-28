@@ -21,5 +21,7 @@
 (** This module provides a opus decoder for
   * the [Ogg_demuxer] module. *)
 
+val decoder_samplerate : int ref
+
 (** Register the opus decoder *)
 val register : unit -> unit
