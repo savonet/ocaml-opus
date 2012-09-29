@@ -194,6 +194,42 @@ CAMLprim value ocaml_opus_comments(value packet)
   CAMLreturn(ans);
 }
 
+static opus_int32 bandwidth_of_value(value v) {
+  if (v == get_var(Auto))
+    return OPUS_AUTO;
+  if (v == get_var(Narrow_band))
+    return OPUS_BANDWIDTH_NARROWBAND;
+  if (v == get_var(Medium_band))
+    return OPUS_BANDWIDTH_MEDIUMBAND;
+  if (v == get_var(Wide_band))
+    return OPUS_BANDWIDTH_WIDEBAND;
+  if (v == get_var(Super_wide_band))
+    return OPUS_BANDWIDTH_SUPERWIDEBAND;
+  if (v == get_var(Full_band))
+    return OPUS_BANDWIDTH_FULLBAND;
+
+  caml_failwith("Unknown opus error");
+}
+
+static value value_of_bandwidth(opus_int32 a) {
+  switch (a) {
+    case OPUS_AUTO:
+      return get_var(Auto);
+    case OPUS_BANDWIDTH_NARROWBAND:
+      return get_var(Narrow_band);
+    case OPUS_BANDWIDTH_MEDIUMBAND:
+      return get_var(Medium_band);
+    case OPUS_BANDWIDTH_WIDEBAND:
+      return get_var(Wide_band);
+    case OPUS_BANDWIDTH_SUPERWIDEBAND:
+      return get_var(Super_wide_band);
+    case OPUS_BANDWIDTH_FULLBAND:
+      return get_var(Full_band);
+    default:
+      caml_failwith("Unknown opus error");
+  }
+}
+
 CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
 {
   CAMLparam2(_dec, ctl);
@@ -210,7 +246,7 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
     /* Generic controls. */
     get_ctl(tag, Get_final_range, dec, opus_decoder_ctl, OPUS_GET_FINAL_RANGE, v, opus_uint32);
     get_ctl(tag, Get_pitch, dec, opus_decoder_ctl, OPUS_GET_PITCH, v, opus_int32);
-    //get_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32);
+    get_value_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, dec, opus_decoder_ctl, OPUS_SET_LSB_DEPTH, v);
     get_ctl(tag, Get_lsb_depth, dec, opus_decoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
 
@@ -231,9 +267,9 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
   OpusDecoder *dec = Dec_val(_dec);
   int decode_fec = Int_val(_fec);
 
-  long ofs = Int_val(_ofs);
-  long len = Int_val(_len);
-  long total_samples = 0;
+  int ofs = Int_val(_ofs);
+  int len = Int_val(_len);
+  int total_samples = 0;
   int ret;
 
   int   chans = Wosize_val(buf); 
@@ -252,15 +288,15 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
      *    decoded if > 0 and raise 
      *    Ogg_not_enough_data otherwise
      * -1: out of sync */
-    if (ret != 1) {
+    if (ret == -1)
+      caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
+
+    if (ret == 0) {
       free(pcm);
       if (total_samples > 0) {
         CAMLreturn(Val_int(total_samples));
       } else {
-        if (ret == -1)
-          caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
-         else
-          caml_raise_constant(*caml_named_value("ogg_exn_not_enough_data"));
+        caml_raise_constant(*caml_named_value("ogg_exn_not_enough_data"));
       }
     }
 
@@ -276,7 +312,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
     }
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
-      for (i = 0; i < len; i++)
+      for (i = 0; i < ret; i++)
         Store_double_field(chan, ofs+total_samples+i, pcm[i*chans+c]);
     }
     total_samples += ret;
@@ -406,42 +442,6 @@ static value value_of_signal(opus_int32 a) {
       return get_var(Voice);
     case OPUS_SIGNAL_MUSIC:
       return get_var(Music);
-    default:
-      caml_failwith("Unknown opus error");
-  }
-}
-
-static opus_int32 bandwidth_of_value(value v) {
-  if (v == get_var(Auto))
-    return OPUS_AUTO;
-  if (v == get_var(Narrow_band))
-    return OPUS_BANDWIDTH_NARROWBAND;
-  if (v == get_var(Medium_band))
-    return OPUS_BANDWIDTH_MEDIUMBAND;
-  if (v == get_var(Wide_band))
-    return OPUS_BANDWIDTH_WIDEBAND;
-  if (v == get_var(Super_wide_band))
-    return OPUS_BANDWIDTH_SUPERWIDEBAND;
-  if (v == get_var(Full_band))
-    return OPUS_BANDWIDTH_FULLBAND;
-
-  caml_failwith("Unknown opus error");
-}
-
-static value value_of_bandwidth(opus_int32 a) {
-  switch (a) {
-    case OPUS_AUTO:
-      return get_var(Auto);
-    case OPUS_BANDWIDTH_NARROWBAND:
-      return get_var(Narrow_band);
-    case OPUS_BANDWIDTH_MEDIUMBAND:
-      return get_var(Medium_band);
-    case OPUS_BANDWIDTH_WIDEBAND:
-      return get_var(Wide_band);
-    case OPUS_BANDWIDTH_SUPERWIDEBAND:
-      return get_var(Super_wide_band);
-    case OPUS_BANDWIDTH_FULLBAND:
-      return get_var(Full_band);
     default:
       caml_failwith("Unknown opus error");
   }
