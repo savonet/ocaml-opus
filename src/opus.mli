@@ -73,12 +73,18 @@ module Encoder : sig
     | `Music
   ]
 
+  type bitrate = [
+    | `Auto
+    | `Bitrate_max
+    | `Bitrate of int
+  ]
+
   type control = [
     | generic_control 
     | `Set_complexity        of int
     | `Get_complexity        of int ref
-    | `Set_birate            of int
-    | `Get_bitrate           of int ref
+    | `Set_bitrate           of bitrate
+    | `Get_bitrate           of bitrate ref
     | `Set_vbr               of bool
     | `Get_vbr               of bool ref
     | `Set_vbr_constraint    of bool

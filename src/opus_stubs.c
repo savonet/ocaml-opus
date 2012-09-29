@@ -333,6 +333,36 @@ CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _applica
   CAMLreturn(ans);
 }
 
+static opus_int32 bitrate_of_value(value v) {
+  if (Is_long(v)) {
+    if (v == get_var(Auto))
+      return OPUS_AUTO;
+    if (v == get_var(Bitrate_max))
+      return OPUS_BITRATE_MAX;
+  } else {
+    if (Field(v,0) == get_var(Bitrate))
+      return Int_val(Field(v,1));
+  }
+
+  caml_failwith("Unknown opus error");
+}
+
+CAMLprim value value_of_bitrate(opus_int32 a) {
+  CAMLparam0();
+  CAMLlocal1(ret);
+  switch (a) {
+    case OPUS_AUTO:
+      CAMLreturn(get_var(Auto));
+    case OPUS_BITRATE_MAX:
+      CAMLreturn(get_var(Voice));
+    default:
+      ret = caml_alloc_tuple(2);
+      Store_field(ret,0,get_var(Bitrate));
+      Store_field(ret,1,Val_int(a));
+      CAMLreturn(ret);
+  }
+}
+
 static opus_int32 signal_of_value(value v) {
   if (v == get_var(Auto))
     return OPUS_AUTO;
@@ -416,8 +446,6 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
     /* Encoder controls. */
     set_ctl(tag, Set_complexity, enc, opus_encoder_ctl, OPUS_SET_COMPLEXITY, v);
     get_ctl(tag, Get_complexity, enc, opus_encoder_ctl, OPUS_GET_COMPLEXITY, v, opus_int32);
-    set_ctl(tag, Set_bitrate, enc, opus_encoder_ctl, OPUS_SET_BITRATE, v);
-    get_ctl(tag, Get_bitrate, enc, opus_encoder_ctl, OPUS_GET_BITRATE, v, opus_int32);
     set_ctl(tag, Set_vbr, enc, opus_encoder_ctl, OPUS_SET_VBR, v);
     get_ctl(tag, Get_vbr, enc, opus_encoder_ctl, OPUS_GET_VBR, v, opus_int32);
     set_ctl(tag, Set_vbr_constraint, enc, opus_encoder_ctl, OPUS_SET_VBR_CONSTRAINT, v);
@@ -434,6 +462,8 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
     get_ctl(tag, Get_dtx, enc, opus_encoder_ctl, OPUS_GET_DTX, v, opus_int32);
 
     /* These guys have polynmorphic variant as argument.. */
+    set_value_ctl(tag, Set_bitrate, enc, opus_encoder_ctl, OPUS_SET_BITRATE, v, bitrate_of_value);
+    get_value_ctl(tag, Get_bitrate, enc, opus_encoder_ctl, OPUS_GET_BITRATE, v, opus_int32, value_of_bitrate);
     set_value_ctl(tag, Set_max_bandwidth, enc, opus_encoder_ctl, OPUS_SET_MAX_BANDWIDTH, v, bandwidth_of_value);
     get_value_ctl(tag, Get_max_bandwidth, enc, opus_encoder_ctl, OPUS_GET_MAX_BANDWIDTH, v, opus_int32, value_of_bandwidth);
     set_value_ctl(tag, Set_bandwidth, enc, opus_encoder_ctl, OPUS_SET_BANDWIDTH, v, bandwidth_of_value);
