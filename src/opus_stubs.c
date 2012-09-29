@@ -17,18 +17,10 @@
 #include <opus/opus_multistream.h>
 
 #ifdef BIGENDIAN
-// Thank you, FFMPEG :-)
-static inline opus_uint16 bswap_32(opus_uint16 x)
-{
-  unsigned tmp;
-  __asm__("%1 = %0 >> 8 (V);      \n\t"
-          "%0 = %0 << 8 (V);      \n\t"
-          "%0 = %0 | %1;          \n\t"
-          "%0 = PACK(%0.L, %0.H); \n\t"
-          : "+d"(x), "=&d"(tmp));
-  return x;
-}
-#define length_to_native(x) bswap_32(x)
+// code from bits/byteswap.h (C) 1997, 1998 Free Software Foundation, Inc.
+#define length_to_native(x) \
+     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | \
+      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 #else
 #define length_to_native(x) x
 #endif
