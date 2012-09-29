@@ -57,7 +57,7 @@ module Decoder : sig
 
   val apply_control : control -> t -> unit
 
-  val decode_float : t -> Packet.t -> float array array -> int -> int -> int
+  val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
 end
 
 module Encoder : sig

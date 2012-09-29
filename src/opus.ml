@@ -77,7 +77,11 @@ module Decoder = struct
 
   external apply_control : control -> t -> unit = "ocaml_opus_decoder_ctl"
 
-  external decode_float : t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
+  external decode_float : t -> Ogg.Stream.t -> float array array -> 
+                          int -> int -> bool ->int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
+
+  let decode_float ?(decode_fec=false) decoder os buf ofs len =
+    decode_float decoder os buf ofs len decode_fec
 end
 
 module Encoder = struct

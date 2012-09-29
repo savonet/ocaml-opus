@@ -96,37 +96,17 @@ let () =
   (
     try
       while true do
-        let rec packet () =
-          try
-            Ogg.Stream.get_packet os
-          with
-          | Ogg.Not_enough_data ->
-            let page = Ogg.Sync.read sync in
-            if Ogg.Page.serialno page = Ogg.Stream.serialno os then Ogg.Stream.put_page os page;
-            packet ()
-        in
-        let packet = packet () in
-        let len =
-          try
-            let c = Opus.Packet.channels packet in
-            if c <> chans then
-              (
-                Printf.printf "Ignoring packet with %d channels instead of %d.\n%!" c chans;
-                0
-              )
-            else
-              Opus.Decoder.decode_float dec packet buf 0 buflen
-          with
-          | Opus.Invalid_packet ->
-            Printf.printf "Invalid packet!\n%!";
-            0
-          | Invalid_argument e ->
-            Printf.printf "Invalid argument: %s\n%!" e;
-            0
-        in
-        for c = 0 to chans - 1 do
-          outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
-        done
+        try
+          let len = 
+            Opus.Decoder.decode_float dec os buf 0 buflen
+          in
+          for c = 0 to chans - 1 do
+            outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
+          done
+         with
+           | Ogg.Not_enough_data ->
+              let page = Ogg.Sync.read sync in
+              if Ogg.Page.serialno page = Ogg.Stream.serialno os then Ogg.Stream.put_page os page
       done
     with
     | Ogg.End_of_stream -> ()

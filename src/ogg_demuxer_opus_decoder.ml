@@ -74,8 +74,7 @@ let decoder os =
   in
   let decode feed =
     let dec,chans,buf,_ = init () in
-    let packet = Ogg.Stream.get_packet !os in
-    let ret = Opus.Decoder.decode_float dec packet buf 0 buflen in
+    let ret = Opus.Decoder.decode_float dec !os buf 0 buflen in
     feed (Array.map (fun x -> Array.sub x 0 ret) buf)
   in
   Ogg_demuxer.Audio

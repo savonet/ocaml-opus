@@ -222,51 +222,75 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
   caml_failwith("Unknown opus error"); 
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value buf, value _ofs, value _len)
+CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf, value _ofs, value _len, value _fec)
 {
-  CAMLparam3(_dec, packet, buf);
+  CAMLparam3(_dec, _os, buf);
   CAMLlocal1(chan);
-  ogg_packet *op = Packet_val(packet);
+  ogg_stream_state *os = Stream_state_val(_os);
+  ogg_packet op;
   OpusDecoder *dec = Dec_val(_dec);
-  opus_int32 data_len = op->bytes;
-  unsigned char *data = malloc(data_len);
-  memcpy(data, op->packet, data_len);
+  int decode_fec = Int_val(_fec);
+
+  long ofs = Int_val(_ofs);
+  long len = Int_val(_len);
+  long total_samples = 0;
   int ret;
-  int chans = opus_packet_get_nb_channels(data);
-  if (Wosize_val(buf) != chans)
-    caml_invalid_argument("Wrong number of channels.");
-  int ofs = Int_val(_ofs);
-  int len = Int_val(_len);
-  float *pcm = malloc(chans * len * sizeof(float));
+
+  int   chans = Wosize_val(buf); 
+  float *pcm  = malloc(chans * len * sizeof(float));
+  if (pcm == NULL)
+    caml_raise_out_of_memory();
+
   int i, c;
 
-  caml_enter_blocking_section();
-  /* TODO: what is the last argument exactly? */
-  ret = opus_decode_float(dec, data, data_len, pcm, len, 0);
-  caml_leave_blocking_section();
-  free(data);
+  while (total_samples < len) {
+    ret = ogg_stream_packetout(os,&op);
+    /* returned values are:
+     * 1: ok
+     * 0: not enough data. in this case
+     *    we return the number of samples
+     *    decoded if > 0 and raise 
+     *    Ogg_not_enough_data otherwise
+     * -1: out of sync */
+    if (ret != 1) {
+      free(pcm);
+      if (total_samples > 0) {
+        CAMLreturn(Val_int(total_samples));
+      } else {
+        if (ret == -1)
+          caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
+         else
+          caml_raise_constant(*caml_named_value("ogg_exn_not_enough_data"));
+      }
+    }
 
-  if (ret < 0)
-    {
+    if (chans != opus_packet_get_nb_channels(op.packet))
+      caml_invalid_argument("Wrong number of channels.");
+
+    caml_enter_blocking_section();
+    ret = opus_decode_float(dec, op.packet, op.bytes, pcm, len, decode_fec);
+    caml_leave_blocking_section();
+    if (ret < 0) {
       free(pcm);
       check(ret);
     }
-  len = ret;
-
-  for (c = 0; c < chans; c++)
-    {
+    for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < len; i++)
-        Store_double_field(chan, ofs+i, pcm[i*chans+c]);
-      }
+        Store_double_field(chan, ofs+total_samples+i, pcm[i*chans+c]);
+    }
+    total_samples += ret;
+    len           -= ret;
+  }
 
-  CAMLreturn(Val_int(ret));
+  free(pcm);
+  CAMLreturn(Val_int(total_samples));
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float_byte(value args)
+CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn)
 {
-  /* TODO */
-  assert(0);
+  return ocaml_opus_decoder_decode_float(argv[0], argv[1], argv[2], 
+                                         argv[3], argv[4], argv[5]);
 }
 
 /***** Encoder *****/
@@ -487,7 +511,11 @@ CAMLprim value ocaml_opus_encode_float(value _enc, value buf, value _off, value 
   /* This is the recommended value */
   int max_data_bytes = 4000;
   unsigned char *data = malloc(max_data_bytes);
+  if (data == NULL)
+    caml_raise_out_of_memory();
   float *pcm = malloc(chans*len*sizeof(float));
+  if (data == NULL)
+    caml_raise_out_of_memory();
   int i, c;
   int ret;
   for(i = 0; i < len; i ++)
