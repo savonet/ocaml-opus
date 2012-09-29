@@ -42,22 +42,91 @@ module Packet = struct
     vendor, comments
 end
 
+type max_bandwidth = [
+  | `Narrow_band
+  | `Medium_band
+  | `Wide_band
+  | `Super_wide_band
+  | `Full_band 
+]
+
+type bandwidth = [
+  | `Auto
+  | max_bandwidth
+]
+
+type generic_control = [
+  | `Reset_state
+  | `Get_final_range of int ref 
+  | `Get_pitch       of int ref
+  | `Get_bandwidth   of bandwidth ref
+  | `Set_lsb_depth   of int
+  | `Get_lsb_depth   of int ref
+]
+
 module Decoder = struct
+  type control = [
+    | generic_control
+    | `Set_gain of int
+    | `Get_gain of int ref 
+  ]
+
   type t
 
-  external create : int -> int -> t = "ocaml_opus_decoder_create"
+  external create : samplerate:int -> channels:int -> t = "ocaml_opus_decoder_create"
 
-  let create ~samplerate ~channels = create samplerate channels
+  external apply_control : control -> t -> unit = "ocaml_opus_decoder_ctl"
 
   external decode_float : t -> Packet.t -> float array array -> int -> int -> int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 end
 
 module Encoder = struct
+  type application = [
+    | `Voip
+    | `Audio
+    | `Restricted_lowdelay
+  ]
+
+  type signal = [
+    | `Auto
+    | `Voice
+    | `Music
+  ]
+
+  type control = [
+    | generic_control 
+    | `Set_complexity        of int
+    | `Get_complexity        of int ref
+    | `Set_birate            of int
+    | `Get_bitrate           of int ref
+    | `Set_vbr               of bool
+    | `Get_vbr               of bool ref
+    | `Set_vbr_constraint    of bool
+    | `Get_vbr_constraint    of bool ref
+    | `Set_force_channels    of bool
+    | `Get_force_channels    of bool ref
+    | `Set_max_bandwidth     of max_bandwidth 
+    | `Get_max_bandwidth     of max_bandwidth
+    | `Set_bandwidth         of bandwidth
+    | `Set_signal            of signal
+    | `Get_signal            of signal ref
+    | `Set_application       of application
+    | `Get_application       of application
+    | `Get_samplerate        of int
+    | `Get_lookhead          of int
+    | `Set_inband_fec        of bool
+    | `Get_inband_fec        of bool ref
+    | `Set_packet_loss_perc  of int
+    | `Get_packet_loss_perc  of int ref
+    | `Set_dtx               of bool
+    | `Get_dtx               of bool ref
+  ]
+
   type t
 
-  type application = Application_voip | Application_audio | Application_restricted_lowdelay
+  external create : samplerate:int -> channels:int -> application:application -> t = "ocaml_opus_encoder_create"
 
-  external create : int -> int -> application -> t = "ocaml_opus_encoder_create"
+  external apply_control : control -> t -> unit = "ocaml_opus_encoder_ctl"
 
   external encode_float : t -> float array array -> int -> int -> string = "ocaml_opus_encode_float"
 end

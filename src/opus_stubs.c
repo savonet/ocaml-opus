@@ -25,6 +25,37 @@
 #define length_to_native(x) x
 #endif
 
+/* polymorphic variant utility macro */
+#define get_var(x) caml_hash_variant(#x)
+
+/* Macros to convert variants to controls. */
+#define set_ctl(tag, variant, handle, fn, name, v) \
+  if (tag == get_var(variant)) { \
+    check(fn(handle,name(Int_val(v)))); \
+    CAMLreturn(Val_unit); \
+  }
+
+#define set_value_ctl(tag, variant, handle, fn, name, v, convert) \
+  if (tag == get_var(variant)) { \
+    check(fn(handle,name(convert(v)))); \
+    CAMLreturn(Val_unit); \
+  }
+
+#define get_ctl(tag, variant, handle, fn, name, v, type) \
+  if (tag == get_var(variant)) { \
+    type name = (type)Int_val(Field(v,0)); \
+    check(fn(handle,name(&name))); \
+    Store_field(v,0,Val_int(name)); \
+    CAMLreturn(Val_unit); \
+  }
+
+#define get_value_ctl(tag, variant, handle, fn, name, v, type, convert) \
+  if (tag == get_var(variant)) { \
+    type name = (type)Int_val(Field(v,0)); \
+    check(fn(handle,name(&name))); \
+    Store_field(v,0,convert(name)); \
+    CAMLreturn(Val_unit); \
+  }
 
 static void check(int ret)
 {
@@ -163,6 +194,34 @@ CAMLprim value ocaml_opus_comments(value packet)
   CAMLreturn(ans);
 }
 
+CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
+{
+  CAMLparam2(_dec, ctl);
+  CAMLlocal2(tag,v);
+  OpusDecoder *dec = Dec_val(_dec);
+  if (Is_long(ctl)) {
+    // Only ctl without argument here is reset state..
+    opus_decoder_ctl(dec, OPUS_RESET_STATE);
+    CAMLreturn(Val_unit);
+  } else {
+    v   = Field(ctl,1);
+    tag = Field(ctl,0);
+
+    /* Generic controls. */
+    get_ctl(tag, Get_final_range, dec, opus_decoder_ctl, OPUS_GET_FINAL_RANGE, v, opus_uint32);
+    get_ctl(tag, Get_pitch, dec, opus_decoder_ctl, OPUS_GET_PITCH, v, opus_int32);
+    //get_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32);
+    set_ctl(tag, Set_lsb_depth, dec, opus_decoder_ctl, OPUS_SET_LSB_DEPTH, v);
+    get_ctl(tag, Get_lsb_depth, dec, opus_decoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+
+    /* Decoder controls. */
+    get_ctl(tag, Get_gain, dec, opus_decoder_ctl, OPUS_GET_GAIN, v, opus_int32);
+    set_ctl(tag, Set_gain, dec, opus_decoder_ctl, OPUS_SET_GAIN, v);
+  }
+
+  caml_failwith("Unknown opus error"); 
+}
+
 CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value packet, value buf, value _ofs, value _len)
 {
   CAMLparam3(_dec, packet, buf);
@@ -230,22 +289,28 @@ static struct custom_operations enc_ops =
     custom_deserialize_default
   };
 
-static int int_of_application(value app)
-{
-  switch(Int_val(app))
-    {
-    case 0:
-      return OPUS_APPLICATION_VOIP;
+static opus_int32 application_of_value(value v) {
+  if (v == get_var(Voip))
+    return OPUS_APPLICATION_VOIP;
+  if (v == get_var(Audio))
+    return OPUS_APPLICATION_AUDIO;
+  if (v == get_var(Restricted_lowdelay))
+    return OPUS_APPLICATION_RESTRICTED_LOWDELAY;
 
-    case 1:
-      return OPUS_APPLICATION_AUDIO;
+  caml_failwith("Unknown opus error");
+}
 
-    case 2:
-      return OPUS_APPLICATION_RESTRICTED_LOWDELAY;
-
+static value value_of_application(opus_int32 a) {
+  switch (a) {
+    case OPUS_APPLICATION_VOIP:
+      return get_var(Voip);
+    case OPUS_APPLICATION_AUDIO:
+      return get_var(Audio);
+    case OPUS_APPLICATION_RESTRICTED_LOWDELAY:
+      return get_var(Restricted_lowdelay);
     default:
-      assert(0);
-    }
+      caml_failwith("Unknown opus error");
+  }
 }
 
 CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _application)
@@ -255,7 +320,7 @@ CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _applica
   opus_int32 sr = Int_val(_sr);
   int chans = Int_val(_chans);
   int ret = 0;
-  int app = int_of_application(_application);
+  int app = application_of_value(_application);
   OpusEncoder *enc;
 
   caml_enter_blocking_section();
@@ -266,6 +331,119 @@ CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _applica
   ans = caml_alloc_custom(&enc_ops, sizeof(OpusEncoder*), 0, 1);
   Enc_val(ans) = enc;
   CAMLreturn(ans);
+}
+
+static opus_int32 signal_of_value(value v) {
+  if (v == get_var(Auto))
+    return OPUS_AUTO;
+  if (v == get_var(Voice))
+    return OPUS_SIGNAL_VOICE;
+  if (v == get_var(Music))
+    return OPUS_SIGNAL_MUSIC;
+
+  caml_failwith("Unknown opus error");
+}
+
+static value value_of_signal(opus_int32 a) {
+  switch (a) {
+    case OPUS_AUTO:
+      return get_var(Auto);
+    case OPUS_SIGNAL_VOICE:
+      return get_var(Voice);
+    case OPUS_SIGNAL_MUSIC:
+      return get_var(Music);
+    default:
+      caml_failwith("Unknown opus error");
+  }
+}
+
+static opus_int32 bandwidth_of_value(value v) {
+  if (v == get_var(Auto))
+    return OPUS_AUTO;
+  if (v == get_var(Narrow_band))
+    return OPUS_BANDWIDTH_NARROWBAND;
+  if (v == get_var(Medium_band))
+    return OPUS_BANDWIDTH_MEDIUMBAND;
+  if (v == get_var(Wide_band))
+    return OPUS_BANDWIDTH_WIDEBAND;
+  if (v == get_var(Super_wide_band))
+    return OPUS_BANDWIDTH_SUPERWIDEBAND;
+  if (v == get_var(Full_band))
+    return OPUS_BANDWIDTH_FULLBAND;
+
+  caml_failwith("Unknown opus error");
+}
+
+static value value_of_bandwidth(opus_int32 a) {
+  switch (a) {
+    case OPUS_AUTO:
+      return get_var(Auto);
+    case OPUS_BANDWIDTH_NARROWBAND:
+      return get_var(Narrow_band);
+    case OPUS_BANDWIDTH_MEDIUMBAND:
+      return get_var(Medium_band);
+    case OPUS_BANDWIDTH_WIDEBAND:
+      return get_var(Wide_band);
+    case OPUS_BANDWIDTH_SUPERWIDEBAND:
+      return get_var(Super_wide_band);
+    case OPUS_BANDWIDTH_FULLBAND:
+      return get_var(Full_band);
+    default:
+      caml_failwith("Unknown opus error");
+  }
+}
+
+CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
+{
+  CAMLparam2(_enc, ctl);
+  CAMLlocal2(tag,v);
+  OpusEncoder *enc = Enc_val(_enc);
+  if (Is_long(ctl)) {
+    // Only ctl without argument here is reset state..
+    opus_encoder_ctl(enc, OPUS_RESET_STATE);
+    CAMLreturn(Val_unit);
+  } else {
+    v   = Field(ctl,1);
+    tag = Field(ctl,0);
+
+    /* Generic controls. */
+    get_ctl(tag, Get_final_range, enc, opus_encoder_ctl, OPUS_GET_FINAL_RANGE, v, opus_uint32);
+    get_ctl(tag, Get_pitch, enc, opus_encoder_ctl, OPUS_GET_PITCH, v, opus_int32);
+    get_value_ctl(tag, Get_bandwidth, enc, opus_encoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
+    set_ctl(tag, Set_lsb_depth, enc, opus_encoder_ctl, OPUS_SET_LSB_DEPTH, v);
+    get_ctl(tag, Get_lsb_depth, enc, opus_encoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+    
+    /* Encoder controls. */
+    set_ctl(tag, Set_complexity, enc, opus_encoder_ctl, OPUS_SET_COMPLEXITY, v);
+    get_ctl(tag, Get_complexity, enc, opus_encoder_ctl, OPUS_GET_COMPLEXITY, v, opus_int32);
+    set_ctl(tag, Set_bitrate, enc, opus_encoder_ctl, OPUS_SET_BITRATE, v);
+    get_ctl(tag, Get_bitrate, enc, opus_encoder_ctl, OPUS_GET_BITRATE, v, opus_int32);
+    set_ctl(tag, Set_vbr, enc, opus_encoder_ctl, OPUS_SET_VBR, v);
+    get_ctl(tag, Get_vbr, enc, opus_encoder_ctl, OPUS_GET_VBR, v, opus_int32);
+    set_ctl(tag, Set_vbr_constraint, enc, opus_encoder_ctl, OPUS_SET_VBR_CONSTRAINT, v);
+    get_ctl(tag, Get_vbr_constraint, enc, opus_encoder_ctl, OPUS_GET_VBR_CONSTRAINT, v, opus_int32);
+    set_ctl(tag, Set_force_channels, enc, opus_encoder_ctl, OPUS_SET_FORCE_CHANNELS, v);
+    get_ctl(tag, Get_force_channels, enc, opus_encoder_ctl, OPUS_GET_FORCE_CHANNELS, v, opus_int32);
+    get_ctl(tag, Get_samplerate, enc, opus_encoder_ctl, OPUS_GET_SAMPLE_RATE, v, opus_int32);
+    get_ctl(tag, Get_lookhead, enc, opus_encoder_ctl, OPUS_GET_LOOKAHEAD, v, opus_int32);
+    set_ctl(tag, Set_inband_fec, enc, opus_encoder_ctl, OPUS_SET_INBAND_FEC, v);
+    get_ctl(tag, Get_inband_fec, enc, opus_encoder_ctl, OPUS_GET_INBAND_FEC, v, opus_int32);
+    set_ctl(tag, Set_packet_loss_perc, enc, opus_encoder_ctl, OPUS_SET_PACKET_LOSS_PERC, v);
+    get_ctl(tag, Get_packet_loss_perc, enc, opus_encoder_ctl, OPUS_GET_PACKET_LOSS_PERC, v, opus_int32);
+    set_ctl(tag, Set_dtx, enc, opus_encoder_ctl, OPUS_SET_DTX, v);
+    get_ctl(tag, Get_dtx, enc, opus_encoder_ctl, OPUS_GET_DTX, v, opus_int32);
+
+    /* These guys have polynmorphic variant as argument.. */
+    set_value_ctl(tag, Set_max_bandwidth, enc, opus_encoder_ctl, OPUS_SET_MAX_BANDWIDTH, v, bandwidth_of_value);
+    get_value_ctl(tag, Get_max_bandwidth, enc, opus_encoder_ctl, OPUS_GET_MAX_BANDWIDTH, v, opus_int32, value_of_bandwidth);
+    set_value_ctl(tag, Set_bandwidth, enc, opus_encoder_ctl, OPUS_SET_BANDWIDTH, v, bandwidth_of_value);
+    set_value_ctl(tag, Set_signal, enc, opus_encoder_ctl, OPUS_SET_SIGNAL, v, signal_of_value);
+    get_value_ctl(tag, Get_signal, enc, opus_encoder_ctl, OPUS_GET_SIGNAL, v, opus_int32, value_of_signal);
+    set_value_ctl(tag, Set_application, enc, opus_encoder_ctl, OPUS_SET_APPLICATION, v, application_of_value);
+    get_value_ctl(tag, Get_application, enc, opus_encoder_ctl, OPUS_GET_APPLICATION, v, opus_int32, value_of_application);
+  }
+
+  caml_failwith("Unknown opus error");
 }
 
 CAMLprim value ocaml_opus_encode_float(value _enc, value buf, value _off, value _len)
