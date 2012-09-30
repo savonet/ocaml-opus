@@ -166,26 +166,45 @@ CAMLprim value ocaml_opus_comments(value packet)
     check(OPUS_INVALID_PACKET);
   ans = caml_alloc_tuple(2);
 
-  /* TODO: check for buffer overflows */
-
   int off = 8;
   /* Vendor */
+
+  if (off+4 > op->bytes)
+    check(OPUS_INVALID_PACKET);
+
   opus_int32 vendor_length = length_to_native((opus_int32)*(op->packet+off));
   off += 4;
+
+  if (off+vendor_length > op->bytes)
+    check(OPUS_INVALID_PACKET);
+
   Store_field(ans, 0, caml_alloc_string(vendor_length));
   memcpy(String_val(Field(ans,0)), op->packet+off, vendor_length);
+
   off += vendor_length;
 
   /* Comments */
+
+  if (off+4 > op->bytes)
+    check(OPUS_INVALID_PACKET);
+
   opus_int32 comments_length = length_to_native((opus_int32)*(op->packet+off));
   off += 4;
+
   comments = caml_alloc_tuple(comments_length);
   Store_field(ans, 1, comments);
   opus_int32 i, len;
   for(i = 0; i < comments_length; i++)
     {
+      if (off+4 > op->bytes)
+        check(OPUS_INVALID_PACKET);
+
       len = length_to_native((opus_int32)*(op->packet+off));
       off += 4;
+
+      if (off+len > op->bytes)
+        check(OPUS_INVALID_PACKET);
+
       Store_field(comments, i, caml_alloc_string(len));
       memcpy(String_val(Field(comments, i)), op->packet+off, len);
       off += len;

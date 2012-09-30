@@ -73,22 +73,18 @@ let () =
     Printf.printf "Found an opus stream with %d channels.\n%!" chans;
     os, chans
   in
-  let vendor, comments =
-    let page = Ogg.Sync.read sync in
-    Ogg.Stream.put_page os page;
-    let packet = Ogg.Stream.get_packet os in
-    let vendor, comments = Opus.Packet.comments packet in
-    Printf.printf "Vendor: %s\nComments:\n%!" vendor;
-    List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
-    vendor, comments
-  in
+  let page = Ogg.Sync.read sync in
+  Ogg.Stream.put_page os page;
+  let packet = Ogg.Stream.get_packet os in
+  let vendor, comments = Opus.Packet.comments packet in
+  Printf.printf "Vendor: %s\nComments:\n%!" vendor;
+  List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
   let samplerate = 48000 in
   Printf.printf "Creating decoder... %!";
   let dec = Opus.Decoder.create ~samplerate ~channels:chans in
   Printf.printf "done.\n%!";
 
   Printf.printf "Decoding...%!";
-  let samples = ref 0 in
   let max_frame_size = 960*6 in
   let buflen = max_frame_size in
   let buf = Array.init chans (fun _ -> Array.create buflen 0.) in
