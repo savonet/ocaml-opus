@@ -60,7 +60,7 @@ let () =
 
   let sync, fd = Ogg.Sync.create_from_file !src in
   Printf.printf "Checking file.\n%!";
-  let os, chans =
+  let os, p1 =
     let page = Ogg.Sync.read sync in
     assert (Ogg.Page.bos page);
     let serial = Ogg.Page.serialno page in
@@ -68,20 +68,21 @@ let () =
     let os = Ogg.Stream.create ~serial () in
     Ogg.Stream.put_page os page;
     let packet = Ogg.Stream.get_packet os in
-    assert (Opus.Packet.check_header packet);
-    let chans = Opus.Packet.channels packet in
-    Printf.printf "Found an opus stream with %d channels.\n%!" chans;
-    os, chans
+    assert (Opus.Decoder.check_packet packet);
+    Printf.printf "Found an opus stream!\n%!";
+    os, packet
   in
   let page = Ogg.Sync.read sync in
   Ogg.Stream.put_page os page;
-  let packet = Ogg.Stream.get_packet os in
-  let vendor, comments = Opus.Packet.comments packet in
+  let p2 = Ogg.Stream.get_packet os in
+  let samplerate = 48000 in
+  Printf.printf "Creating decoder...\n%!";
+  let dec = Opus.Decoder.create ~samplerate p1 p2  in
+  let chans = Opus.Decoder.channels dec in
+  Printf.printf "Channels: %d\n%!" chans;
+  let vendor, comments = Opus.Decoder.comments dec in
   Printf.printf "Vendor: %s\nComments:\n%!" vendor;
   List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
-  let samplerate = 48000 in
-  Printf.printf "Creating decoder... %!";
-  let dec = Opus.Decoder.create ~samplerate ~channels:chans in
   Printf.printf "done.\n%!";
 
   Printf.printf "Decoding...%!";

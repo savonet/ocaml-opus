@@ -392,7 +392,7 @@ static value value_of_application(opus_int32 a) {
   }
 }
 
-CAMLprim value ocaml_opus_encoder_create(value _sr, value _chans, value _application)
+CAMLprim value ocaml_opus_encoder_create(value _skip, value _sr, value _chans, value _application)
 {
   CAMLparam0();
   CAMLlocal1(ans);
@@ -519,11 +519,13 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
   caml_failwith("Unknown opus error");
 }
 
-CAMLprim value ocaml_opus_encode_float(value _enc, value buf, value _off, value _len)
+CAMLprim value ocaml_opus_encode_float(value _enc, value buf, value _off, value _len, value _os)
 {
-  CAMLparam2(_enc, buf);
+  CAMLparam3(_enc, buf, _os);
   CAMLlocal1(ans);
   OpusEncoder *enc = Enc_val(_enc);
+  ogg_stream_state *os = Stream_state_val(_os);
+  ogg_packet op;
   int off = Int_val(_off);
   int len = Int_val(_len);
   int chans = Wosize_val(buf);

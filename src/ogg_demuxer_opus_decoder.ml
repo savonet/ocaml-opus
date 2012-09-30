@@ -19,7 +19,7 @@
  *
  *)
 
-let check = Opus.Packet.check_header
+let check = Opus.Decoder.check_packet
 
 let buflen = Opus.recommended_frame_size
 
@@ -47,12 +47,12 @@ let decoder os =
           packet2 := Some p; p
         | Some p -> p
       in
-      let chans = Opus.Packet.channels packet1 in
-      let meta = Opus.Packet.comments packet2 in
-      let dec = Opus.Decoder.create ~samplerate:!decoder_samplerate ~channels:chans in
+      let dec = Opus.Decoder.create ~samplerate:!decoder_samplerate packet1 packet2 in
       (* This buffer is created once. The call to Array.sub
        * below makes a fresh array out of it to pass to
        * liquidsoap. *)
+      let chans = Opus.Decoder.channels dec in
+      let meta = Opus.Decoder.comments dec in
       let chan _ = Array.make buflen 0. in
       let buf = Array.init chans chan in
       decoder := Some (dec,chans,buf,meta);
@@ -68,9 +68,8 @@ let decoder os =
   in
   let restart new_os =
     os := new_os;
-    let (dec,chans,buf,meta) = init () in
-    let dec = Opus.Decoder.create ~samplerate:!decoder_samplerate ~channels:chans in
-    decoder := Some (dec,chans,buf,meta)
+    decoder := None;
+    ignore(init())
   in
   let decode feed =
     let dec,chans,buf,_ = init () in

@@ -19,29 +19,6 @@ external version_string : unit -> string = "ocaml_opus_version_string"
 
 let version_string = version_string ()
 
-module Packet = struct
-  type t = Ogg.Stream.packet
-
-  external check_header : t -> bool = "ocaml_opus_packet_check_header"
-
-  external channels : t -> int = "ocaml_opus_decoder_channels"
-
-  external comments : t -> string * string array = "ocaml_opus_comments"
-
-  let comments p =
-    let vendor, comments = comments p in
-    let comments =
-      Array.map
-        (fun s ->
-          let n = String.index s '=' in
-          String.sub s 0 n,
-          String.sub s (n+1) (String.length s - n - 1)
-        ) comments
-    in
-    let comments = Array.to_list comments in
-    vendor, comments
-end
-
 type max_bandwidth = [
   | `Narrow_band
   | `Medium_band
@@ -71,17 +48,54 @@ module Decoder = struct
     | `Get_gain of int ref 
   ]
 
-  type t
+  external check_packet : Ogg.Stream.packet -> bool = "ocaml_opus_packet_check_header"
 
-  external create : samplerate:int -> channels:int -> t = "ocaml_opus_decoder_create"
+  external channels : Ogg.Stream.packet -> int = "ocaml_opus_decoder_channels"
 
-  external apply_control : control -> t -> unit = "ocaml_opus_decoder_ctl"
+  external comments : Ogg.Stream.packet -> string * string array = "ocaml_opus_comments"
 
-  external decode_float : t -> Ogg.Stream.t -> float array array -> 
+  let comments p =
+    let vendor, comments = comments p in
+    let comments =
+      Array.map
+        (fun s ->
+          let n = String.index s '=' in
+          String.sub s 0 n,
+          String.sub s (n+1) (String.length s - n - 1)
+        ) comments
+    in
+    let comments = Array.to_list comments in
+    vendor, comments
+
+  type decoder
+  type t =
+    { header   : Ogg.Stream.packet;
+      comments : Ogg.Stream.packet;
+      decoder  : decoder }
+
+  external create : samplerate:int -> channels:int -> decoder = "ocaml_opus_decoder_create"
+
+  let create ?(samplerate=48000) p1 p2 =
+    if not (check_packet p1) then
+      raise Invalid_packet;
+    let decoder = create ~samplerate ~channels:(channels p1) in
+    { header   = p1;
+      comments = p2;
+      decoder  = decoder }
+
+  external apply_control : control -> decoder -> unit = "ocaml_opus_decoder_ctl"
+
+  let apply_control control t = apply_control control t.decoder
+
+  external decode_float : decoder -> Ogg.Stream.t -> float array array -> 
                           int -> int -> bool ->int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 
-  let decode_float ?(decode_fec=false) decoder os buf ofs len =
-    decode_float decoder os buf ofs len decode_fec
+  let decode_float ?(decode_fec=false) t os buf ofs len =
+    decode_float t.decoder os buf ofs len decode_fec
+
+  let comments t = comments t.comments
+
+  let channels t = channels t.header
 end
 
 module Encoder = struct
@@ -132,11 +146,24 @@ module Encoder = struct
     | `Get_dtx               of bool ref
   ]
 
-  type t
+  type encoder
+  type t = {
+    os: Ogg.Stream.t;
+    enc: encoder
+  }
 
-  external create : samplerate:int -> channels:int -> application:application -> t = "ocaml_opus_encoder_create"
+  external create : pre_skip:int -> samplerate:int -> channels:int ->
+                    application:application -> encoder = "ocaml_opus_encoder_create_byte" "ocaml_opus_encoder_create"
+
+  let create ?(pre_skip=0) ~samplerate ~channels ~application os =
+    let enc = create ~pre_skip ~samplerate ~channels ~application in
+    { os = os;
+      enc= enc }
 
   external apply_control : control -> t -> unit = "ocaml_opus_encoder_ctl"
 
-  external encode_float : t -> float array array -> int -> int -> string = "ocaml_opus_encode_float"
+  external encode_float : encoder -> float array array -> int -> int -> Ogg.Stream.t -> unit = "ocaml_opus_encode_float"
+
+  let encode_float t buf ofs len =
+    encode_float t.enc buf ofs len t.os
 end

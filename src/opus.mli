@@ -33,16 +33,6 @@ type generic_control = [
   | `Get_lsb_depth   of int ref
 ]
 
-module Packet : sig
-  type t = Ogg.Stream.packet
-
-  val check_header : t -> bool
-
-  val channels : t -> int
-
-  val comments : t -> string * (string * string) list
-end
-
 module Decoder : sig
   type control = [
     | generic_control
@@ -52,8 +42,14 @@ module Decoder : sig
 
   type t
 
+  val check_packet : Ogg.Stream.packet -> bool
+
   (** Create a decoder with given samplerate an number of channels. *)
-  val create : samplerate:int -> channels:int  -> t
+  val create : ?samplerate:int -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
+
+  val comments : t -> string * ((string * string) list)
+
+  val channels : t -> int
 
   val apply_control : control -> t -> unit
 
@@ -110,9 +106,10 @@ module Encoder : sig
 
   type t
 
-  val create : samplerate:int -> channels:int -> application:application -> t
+  val create : ?pre_skip:int -> samplerate:int -> channels:int -> application:application ->
+               Ogg.Stream.t -> t
 
   val apply_control : control -> t -> unit
 
-  val encode_float : t -> float array array -> int -> int -> string
+  val encode_float : t -> float array array -> int -> int -> unit
 end
