@@ -439,7 +439,6 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   opus_int16 vendor_length = strlen(vendor);
   char *comment;
   opus_int32 comments_len = Wosize_val(comments);
-  printf("comment len: %i\n", comments_len); fflush(stdout);
   opus_int16 comment_length;
 
   op->bytes = 8 + 4 + vendor_length + 4;
