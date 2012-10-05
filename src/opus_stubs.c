@@ -438,10 +438,11 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   long pos = 0;
   opus_int16 vendor_length = strlen(vendor);
   char *comment;
-  int comments_len = Wosize_val(comments);
+  opus_int32 comments_len = Wosize_val(comments);
+  printf("comment len: %i\n", comments_len); fflush(stdout);
   opus_int16 comment_length;
 
-  op->bytes = 12 + vendor_length + 4;
+  op->bytes = 8 + 4 + vendor_length + 4;
 
   for (i = 0; i < Wosize_val(comments); i++)
     op->bytes += 4 + caml_string_length(Field(comments, i));
@@ -456,7 +457,7 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
 
   /* Vendor. */
   memcpy(op->packet+8, &int16le_to_native(vendor_length), sizeof(opus_int16));
-  memcpy(op->packet+12,vendor,strlen(vendor));
+  memcpy(op->packet+12,vendor,vendor_length);
   pos += 4 + vendor_length;
 
   /* Comments length. */
