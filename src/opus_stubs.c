@@ -436,10 +436,10 @@ static void pack_header(ogg_packet *op, opus_int32 sr, int channels, opus_int16 
 static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   int  i;
   long pos = 0;
-  opus_int16 vendor_length = strlen(vendor);
+  opus_int32 vendor_length = strlen(vendor);
   char *comment;
   opus_int32 comments_len = Wosize_val(comments);
-  opus_int16 comment_length;
+  opus_int32 comment_length;
 
   op->bytes = 8 + 4 + vendor_length + 4;
 
@@ -455,7 +455,7 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   pos += 8;
 
   /* Vendor. */
-  memcpy(op->packet+8, &int16le_to_native(vendor_length), sizeof(opus_int16));
+  memcpy(op->packet+8, &int32le_to_native(vendor_length), sizeof(opus_int32));
   memcpy(op->packet+12,vendor,vendor_length);
   pos += 4 + vendor_length;
 
@@ -467,7 +467,7 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   for (i = 0; i < comments_len; i++) {
     comment = String_val(Field(comments, i));
     comment_length = caml_string_length(Field(comments, i));
-    memcpy(op->packet+pos, &int16le_to_native(comment_length), sizeof(opus_int16));
+    memcpy(op->packet+pos, &int32le_to_native(comment_length), sizeof(opus_int32));
     memcpy(op->packet+pos+4, comment, comment_length);
     pos += 4 + comment_length;
   }
