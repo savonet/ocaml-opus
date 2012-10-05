@@ -116,7 +116,7 @@ module Encoder : sig
 
   val apply_control : control -> t -> unit
 
-  val encode_float : ?frame_size:int -> t -> float array array -> int -> int -> int
+  val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
 
   val eos : t -> unit
 end
