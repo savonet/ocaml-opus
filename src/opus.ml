@@ -148,22 +148,43 @@ module Encoder = struct
 
   type encoder
   type t = {
-    os: Ogg.Stream.t;
-    enc: encoder
+    header     : Ogg.Stream.packet;
+    comments   : Ogg.Stream.packet; 
+    os         : Ogg.Stream.t;
+    samplerate : int;
+    enc        : encoder
   }
 
-  external create : pre_skip:int -> samplerate:int -> channels:int ->
-                    application:application -> encoder = "ocaml_opus_encoder_create_byte" "ocaml_opus_encoder_create"
+  external create : pre_skip:int -> comments:(string array) -> 
+                    gain:int -> samplerate:int -> channels:int ->
+                    application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_encoder_create_byte" "ocaml_opus_encoder_create"
 
-  let create ?(pre_skip=0) ~samplerate ~channels ~application os =
-    let enc = create ~pre_skip ~samplerate ~channels ~application in
-    { os = os;
-      enc= enc }
+  let create ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~application os =
+    let comments = List.map (fun (label, value) -> 
+      Printf.sprintf "%s=%s" label value) comments
+    in
+    let comments = Array.of_list comments in
+    let enc,p1,p2 = create ~pre_skip ~comments ~gain ~samplerate ~channels ~application in
+    { os         = os;
+      header     = p1;
+      comments   = p2;
+      samplerate = samplerate;
+      enc        = enc }
+
+  let header enc = enc.header
+
+  let comments enc = enc.comments
 
   external apply_control : control -> t -> unit = "ocaml_opus_encoder_ctl"
 
-  external encode_float : encoder -> float array array -> int -> int -> Ogg.Stream.t -> unit = "ocaml_opus_encode_float"
+  external encode_float : frame_size:int -> encoder -> 
+      float array array -> int -> int -> Ogg.Stream.t -> int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
 
-  let encode_float t buf ofs len =
-    encode_float t.enc buf ofs len t.os
+  let encode_float ?(frame_size=20.) t buf ofs len =
+    let frame_size = frame_size *. (float t.samplerate) /. 1000. in
+    encode_float (int_of_float frame_size) t.enc buf ofs len t.os
+
+  external eos : Ogg.Stream.t -> encoder -> unit = "ocaml_opus_encode_eos"
+
+  let eos t = eos t.os t.enc
 end
