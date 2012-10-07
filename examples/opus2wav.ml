@@ -136,5 +136,4 @@ let () =
     done
   done;
   close_out oc;
-
   Gc.full_major ()

@@ -106,10 +106,17 @@ module Encoder : sig
 
   type t
 
-  val create : ?pre_skip:int -> samplerate:int -> channels:int -> application:application ->
+  val create : ?pre_skip:int -> ?comments:((string*string) list) -> ?gain:int ->
+               samplerate:int -> channels:int -> application:application ->
                Ogg.Stream.t -> t
+
+  val header : t -> Ogg.Stream.packet
+
+  val comments : t -> Ogg.Stream.packet
 
   val apply_control : control -> t -> unit
 
-  val encode_float : t -> float array array -> int -> int -> unit
+  val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
+
+  val eos : t -> unit
 end

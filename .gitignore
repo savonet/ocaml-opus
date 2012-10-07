@@ -17,3 +17,12 @@ src/*.cm*
 src/*.o
 src/*.so
 config.h.in
+config.h
+examples/._d/
+examples/Makefile.opus2wav
+examples/opus2wav
+examples/opus2wav.cmi
+examples/opus2wav.cmx
+examples/opus2wav.o
+examples/test.opus
+*.annot
