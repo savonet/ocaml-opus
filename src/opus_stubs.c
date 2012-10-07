@@ -684,8 +684,8 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
-    // TODO: check returned value..?
-    ogg_stream_packetin(os, &op);
+    if (ogg_stream_packetin(os, &op) != 0)
+      caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));;
   }
   free(pcm);
   free(data);
@@ -713,8 +713,8 @@ CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
   op.packetno = handler->packetno;
   op.granulepos = handler->granulepos;
 
-  // TODO: check returned value..?
-  ogg_stream_packetin(os, &op);
+  if (ogg_stream_packetin(os, &op) != 0)
+    caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));;
 
   CAMLreturn(Val_unit);
 }
