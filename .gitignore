@@ -25,4 +25,5 @@ examples/opus2wav.cmi
 examples/opus2wav.cmx
 examples/opus2wav.o
 examples/test.opus
+examples/test.wav
 *.annot
