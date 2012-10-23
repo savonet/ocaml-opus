@@ -27,3 +27,4 @@ examples/opus2wav.o
 examples/test.opus
 examples/test.wav
 *.annot
+*~
