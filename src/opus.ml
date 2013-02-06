@@ -211,5 +211,9 @@ module MSEncoder = struct
 
   let encode_float = Encoder.encode_float
 
+  let header = Encoder.header
+
+  let comments = Encoder.comments
+
   let eos = Encoder.eos
 end

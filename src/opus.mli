@@ -130,5 +130,9 @@ module MSEncoder : sig
 
   val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
 
+  val header : t -> Ogg.Stream.packet
+
+  val comments : t -> Ogg.Stream.packet
+
   val eos : t -> unit
 end
