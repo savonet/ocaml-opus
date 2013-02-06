@@ -132,6 +132,7 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   int chans = Int_val(_chans);
   int ret = 0;
   decoder_t *dec = malloc(sizeof(decoder_t));
+  if (!dec) caml_raise_out_of_memory();
 
   dec->decoder = opus_decoder_create(sr, chans, &ret);
   dec->msdecoder = NULL;
@@ -153,6 +154,7 @@ CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _chans, va
   unsigned char mapping[chans];
   int ret = 0;
   decoder_t *dec = malloc(sizeof(decoder_t));
+  if (!dec) caml_raise_out_of_memory();
   int i;
 
   assert (Wosize_val(_mapping) == chans);
