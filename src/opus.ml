@@ -188,3 +188,28 @@ module Encoder = struct
 
   let eos t = eos t.os t.enc
 end
+
+module MSEncoder = struct
+  type encoder = Encoder.encoder
+  type t = Encoder.t
+
+  type application = Encoder.application
+
+  external create : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
+
+  let create ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application os =
+    let comments = List.map (fun (label, value) ->
+      Printf.sprintf "%s=%s" label value) comments
+    in
+    let comments = Array.of_list comments in
+    let enc,p1,p2 = create ~pre_skip ~comments ~gain ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application in
+    { Encoder.os         = os;
+      Encoder.header     = p1;
+      Encoder.comments   = p2;
+      Encoder.samplerate = samplerate;
+      Encoder.enc        = enc }
+
+  let encode_float = Encoder.encode_float
+
+  let eos = Encoder.eos
+end

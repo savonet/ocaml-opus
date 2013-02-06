@@ -354,6 +354,7 @@ CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn)
 
 typedef struct encoder_t {
   OpusEncoder *encoder;
+  OpusMSEncoder *msencoder;
   int         samplerate_ratio;
   ogg_int64_t granulepos;
   ogg_int64_t packetno;
@@ -364,7 +365,8 @@ typedef struct encoder_t {
 static void finalize_enc(value v)
 {
   encoder_t *enc = Enc_val(v);
-  opus_encoder_destroy(enc->encoder);
+  if (enc->encoder) opus_encoder_destroy(enc->encoder);
+  if (enc->msencoder) opus_multistream_encoder_destroy(enc->msencoder);
   free(enc);
 }
 
@@ -501,6 +503,7 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   pack_comments(&comments, "ocaml-opus by the Savonet Team.", _comments);
 
   enc->encoder = opus_encoder_create(sr, chans, app, &ret);
+  enc->msencoder = NULL;
 
   check(ret);
   _enc = caml_alloc_custom(&enc_ops, sizeof(encoder_t*), 0, 1);
@@ -515,10 +518,61 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   CAMLreturn(ans);
 }
 
-CAMLprim value ocaml_opus_encoder_create_byte(value *argv, int argn)
+/* TODO: factorize code with non-multistream function */
+CAMLprim value ocaml_opus_multistream_encoder_create(value _skip, value _comments, value _gain, value _sr, value _chans, value _streams, value _coupled_streams, value _mapping, value _application)
 {
-  return ocaml_opus_encoder_create(argv[0], argv[1], argv[2],
-                                   argv[3], argv[4], argv[5]);
+  CAMLparam1(_mapping);
+  CAMLlocal2(_enc, ans);
+  opus_int32 sr = Int_val(_sr);
+  int chans = Int_val(_chans);
+  int streams = Int_val(_streams);
+  int coupled_streams = Int_val(_coupled_streams);
+  int ret = 0;
+  int app = application_of_value(_application);
+  encoder_t *enc = malloc(sizeof(encoder_t));
+  int i;
+
+  if (!enc) caml_raise_out_of_memory();
+
+  unsigned char mapping[chans];
+  assert(Wosize_val(_mapping) == chans);
+  for (i = 0; i < chans; i++)
+    mapping[i] = Int_val(Field(_mapping, i));
+
+  /* First encoded packet is the third one. */
+  enc->packetno   = 1;
+  enc->granulepos = 0;
+  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000 
+   * so this value is always an integer. */
+  enc->samplerate_ratio = 48000 / sr;
+
+  ogg_packet header;
+  pack_header(&header, sr, chans, Int_val(_skip), Int_val(_gain));
+
+  ogg_packet comments;
+  pack_comments(&comments, "ocaml-opus by the Savonet Team.", _comments);
+
+  enc->encoder = NULL;
+  enc->msencoder = opus_multistream_encoder_create(sr, chans, streams, coupled_streams, mapping, app, &ret);
+
+  check(ret);
+  _enc = caml_alloc_custom(&enc_ops, sizeof(encoder_t*), 0, 1);
+  Enc_val(_enc) = enc;
+
+  ans = caml_alloc_tuple(3);
+
+  Store_field(ans, 0, _enc);
+  Store_field(ans, 1, value_of_packet(&header));
+  Store_field(ans, 2, value_of_packet(&comments));
+
+  CAMLreturn(ans);
+}
+
+CAMLprim value ocaml_opus_multistream_encoder_create_byte(value *argv, int argn)
+{
+  return ocaml_opus_multistream_encoder_create(argv[0], argv[1], argv[2],
+                                               argv[3], argv[4], argv[5],
+                                               argv[6], argv[7], argv[8]);
 }
 
 static opus_int32 bitrate_of_value(value v) {
@@ -575,12 +629,14 @@ static value value_of_signal(opus_int32 a) {
   }
 }
 
+/* TODO: support for multistream */
 CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
 {
   CAMLparam2(_enc, ctl);
   CAMLlocal2(tag,v);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
+
   if (Is_long(ctl)) {
     // Only ctl without argument here is reset state..
     opus_encoder_ctl(enc, OPUS_RESET_STATE);
@@ -595,7 +651,7 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
     get_value_ctl(tag, Get_bandwidth, enc, opus_encoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, enc, opus_encoder_ctl, OPUS_SET_LSB_DEPTH, v);
     get_ctl(tag, Get_lsb_depth, enc, opus_encoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
-    
+
     /* Encoder controls. */
     set_ctl(tag, Set_complexity, enc, opus_encoder_ctl, OPUS_SET_COMPLEXITY, v);
     get_ctl(tag, Get_complexity, enc, opus_encoder_ctl, OPUS_GET_COMPLEXITY, v, opus_int32);
@@ -634,6 +690,7 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
   CAMLparam3(_enc, buf, _os);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
+  OpusMSEncoder *msenc = handler->msencoder;
   ogg_stream_state *os = Stream_state_val(_os);
   ogg_packet op;
   int off = Int_val(_off);
@@ -647,11 +704,9 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
   /* This is the recommended value */
   int max_data_bytes = 4000;
   unsigned char *data = malloc(max_data_bytes);
-  if (data == NULL)
-    caml_raise_out_of_memory();
+  if (!data) caml_raise_out_of_memory();
   float *pcm = malloc(chans*frame_size*sizeof(float));
-  if (data == NULL)
-    caml_raise_out_of_memory();
+  if (!data) caml_raise_out_of_memory();
   int i, j, c;
   int ret;
   int loops = len / frame_size;
@@ -661,7 +716,10 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
         pcm[chans*j+c] = Double_field(Field(buf, c), off+j+i*frame_size);
 
     caml_release_runtime_system();
-    ret = opus_encode_float(enc, pcm, frame_size, data, max_data_bytes);
+    if (enc)
+      ret = opus_encode_float(enc, pcm, frame_size, data, max_data_bytes);
+    else
+      ret = opus_multistream_encode_float(msenc, pcm, frame_size, data, max_data_bytes);
     caml_acquire_runtime_system();
 
     if (ret < 0) {
@@ -678,7 +736,7 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
     handler->granulepos += frame_size*handler->samplerate_ratio;
     handler->packetno++;
 
-    op.bytes  = ret; 
+    op.bytes  = ret;
     op.packet = data;
     op.b_o_s = op.e_o_s = 0;
     op.packetno = handler->packetno;
@@ -705,7 +763,7 @@ CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
   ogg_packet op;
   encoder_t *handler = Enc_val(_enc);
   handler->packetno++;
-  
+
   op.bytes  = 0;
   op.packet = NULL;
   op.b_o_s  = 0;

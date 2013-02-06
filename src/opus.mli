@@ -120,3 +120,15 @@ module Encoder : sig
 
   val eos : t -> unit
 end
+
+module MSEncoder : sig
+  type t
+
+  type application = Encoder.application
+
+  val create : ?pre_skip:int -> ?comments:(string * string) list -> ?gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> Ogg.Stream.t -> t
+
+  val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
+
+  val eos : t -> unit
+end
