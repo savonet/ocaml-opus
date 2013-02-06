@@ -56,6 +56,18 @@ module Decoder : sig
   val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
 end
 
+module MSDecoder: sig
+  type t
+
+  val create : ?samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
+
+  val comments : t -> string * ((string * string) list)
+
+  val channels : t -> int
+
+  val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
+end
+
 module Encoder : sig
   type application = [
     | `Voip

@@ -99,12 +99,19 @@ CAMLprim value ocaml_opus_version_string(value unit)
 
 /***** Decoder ******/
 
-#define Dec_val(v) (*(OpusDecoder**)Data_custom_val(v))
+typedef struct decoder_t {
+  OpusDecoder *decoder;
+  OpusMSDecoder *msdecoder;
+} decoder_t;
+
+#define Dec_val(v) (*(decoder_t**)Data_custom_val(v))
 
 static void finalize_dec(value v)
 {
-  OpusDecoder *dec = Dec_val(v);
-  opus_decoder_destroy(dec);
+  decoder_t *dec = Dec_val(v);
+  if (dec->decoder) opus_decoder_destroy(dec->decoder);
+  if (dec->msdecoder) opus_multistream_decoder_destroy(dec->msdecoder);
+  free(dec);
 }
 
 static struct custom_operations dec_ops =
@@ -124,12 +131,39 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   opus_int32 sr = Int_val(_sr);
   int chans = Int_val(_chans);
   int ret = 0;
-  OpusDecoder *dec;
+  decoder_t *dec = malloc(sizeof(decoder_t));
 
-  dec = opus_decoder_create(sr, chans, &ret);
+  dec->decoder = opus_decoder_create(sr, chans, &ret);
+  dec->msdecoder = NULL;
 
   check(ret);
-  ans = caml_alloc_custom(&dec_ops, sizeof(OpusDecoder*), 0, 1);
+  ans = caml_alloc_custom(&dec_ops, sizeof(decoder_t*), 0, 1);
+  Dec_val(ans) = dec;
+  CAMLreturn(ans);
+}
+
+CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _chans, value _streams, value _coupled_streams, value _mapping)
+{
+  CAMLparam1(_mapping);
+  CAMLlocal1(ans);
+  opus_int32 sr = Int_val(_sr);
+  int chans = Int_val(_chans);
+  int streams = Int_val(_streams);
+  int coupled_streams = Int_val(_coupled_streams);
+  unsigned char mapping[chans];
+  int ret = 0;
+  decoder_t *dec = malloc(sizeof(decoder_t));
+  int i;
+
+  assert (Wosize_val(_mapping) == chans);
+  for (i = 0; i < chans; i++)
+    mapping[i] = Int_val(Field(_mapping, i));
+
+  dec->decoder = NULL;
+  dec->msdecoder = opus_multistream_decoder_create(sr, chans, streams, coupled_streams, mapping, &ret);
+
+  check(ret);
+  ans = caml_alloc_custom(&dec_ops, sizeof(decoder_t*), 0, 1);
   Dec_val(ans) = dec;
   CAMLreturn(ans);
 }
@@ -254,7 +288,7 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
 {
   CAMLparam2(_dec, ctl);
   CAMLlocal2(tag,v);
-  OpusDecoder *dec = Dec_val(_dec);
+  OpusDecoder *dec = Dec_val(_dec)->decoder;
   if (Is_long(ctl)) {
     // Only ctl without argument here is reset state..
     opus_decoder_ctl(dec, OPUS_RESET_STATE);
@@ -284,7 +318,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
   CAMLlocal1(chan);
   ogg_stream_state *os = Stream_state_val(_os);
   ogg_packet op;
-  OpusDecoder *dec = Dec_val(_dec);
+  decoder_t *dec = Dec_val(_dec);
   int decode_fec = Int_val(_fec);
 
   int ofs = Int_val(_ofs);
@@ -292,10 +326,9 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
   int total_samples = 0;
   int ret;
 
-  int   chans = Wosize_val(buf); 
+  int   chans = Wosize_val(buf);
   float *pcm  = malloc(chans * len * sizeof(float));
-  if (pcm == NULL)
-    caml_raise_out_of_memory();
+  if (!pcm) caml_raise_out_of_memory();
 
   int i, c;
 
@@ -324,7 +357,10 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
       caml_invalid_argument("Wrong number of channels.");
 
     caml_release_runtime_system();
-    ret = opus_decode_float(dec, op.packet, op.bytes, pcm, len, decode_fec);
+    if (dec->decoder)
+      ret = opus_decode_float(dec->decoder, op.packet, op.bytes, pcm, len, decode_fec);
+    else
+      ret = opus_multistream_decode_float(dec->msdecoder, op.packet, op.bytes, pcm, len, decode_fec);
     caml_acquire_runtime_system();
 
     if (ret < 0) {

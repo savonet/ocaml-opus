@@ -50,7 +50,7 @@ module Decoder = struct
 
   external check_packet : Ogg.Stream.packet -> bool = "ocaml_opus_packet_check_header"
 
-  external channels : Ogg.Stream.packet -> int = "ocaml_opus_decoder_channels"
+  external packet_channels : Ogg.Stream.packet -> int = "ocaml_opus_decoder_channels"
 
   external comments : Ogg.Stream.packet -> string * string array = "ocaml_opus_comments"
 
@@ -78,7 +78,7 @@ module Decoder = struct
   let create ?(samplerate=48000) p1 p2 =
     if not (check_packet p1) then
       raise Invalid_packet;
-    let decoder = create ~samplerate ~channels:(channels p1) in
+    let decoder = create ~samplerate ~channels:(packet_channels p1) in
     { header   = p1;
       comments = p2;
       decoder  = decoder }
@@ -95,7 +95,32 @@ module Decoder = struct
 
   let comments t = comments t.comments
 
-  let channels t = channels t.header
+  let channels t = packet_channels t.header
+end
+
+module MSDecoder = struct
+  type decoder = Decoder.decoder
+  type t = Decoder.t
+
+  let check_packet = Decoder.check_packet
+
+  let packet_channels = Decoder.packet_channels
+
+  external create : samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
+
+  let create ?(samplerate=48000) ~streams ~coupled_streams ~mapping p1 p2 =
+    if not (check_packet p1) then
+      raise Invalid_packet;
+    let decoder = create ~samplerate ~channels:(packet_channels p1) ~streams ~coupled_streams ~mapping in
+    { Decoder.header   = p1;
+      Decoder.comments = p2;
+      Decoder.decoder  = decoder }
+
+  let comments = Decoder.comments
+
+  let channels = Decoder.channels
+
+  let decode_float = Decoder.decode_float
 end
 
 module Encoder = struct
