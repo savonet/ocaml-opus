@@ -6,7 +6,8 @@
 #include <caml/misc.h>
 #include <caml/mlvalues.h>
 #include <caml/signals.h>
-#include <caml/threads.h>
+#define caml_acquire_runtime_system caml_leave_blocking_section
+#define caml_release_runtime_system caml_enter_blocking_section
 
 #include <assert.h>
 #include <stdio.h>
