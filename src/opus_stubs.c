@@ -367,7 +367,7 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
     set_ctl(tag, Set_gain, dec, opus_decoder_ctl, OPUS_SET_GAIN, v);
   }
 
-  caml_failwith("Unknown opus error"); 
+  caml_failwith("Unknown opus error");
 }
 
 CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf, value _ofs, value _len, value _fec)
@@ -390,17 +390,21 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
 
   int i, c;
 
+  /* TODO: this is wrong because we will loose some of the last samples! */
   while (total_samples < len) {
     ret = ogg_stream_packetout(os,&op);
     /* returned values are:
      * 1: ok
      * 0: not enough data. in this case
      *    we return the number of samples
-     *    decoded if > 0 and raise 
+     *    decoded if > 0 and raise
      *    Ogg_not_enough_data otherwise
      * -1: out of sync */
     if (ret == -1)
-      caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
+      {
+        free(pcm);
+        caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
+      }
 
     if (ret == 0) {
       free(pcm);
@@ -411,8 +415,12 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
       }
     }
 
-    if (chans != packet_channels(&op))
-      caml_invalid_argument("Wrong number of channels.");
+    /* TODO: this check does not work for multichannels... */
+    /* if (chans != opus_packet_get_nb_channels(op.packet)) */
+    /* printf("chans: %d\n", opus_packet_get_nb_channels(op.packet)); */
+    /* printf("chans': %d\n", packet_channels(&op)); */
+    /* if (chans != packet_channels(&op)) */
+      /* caml_invalid_argument("Wrong number of channels."); */
 
     caml_release_runtime_system();
     if (dec->decoder)
@@ -440,7 +448,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
 
 CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn)
 {
-  return ocaml_opus_decoder_decode_float(argv[0], argv[1], argv[2], 
+  return ocaml_opus_decoder_decode_float(argv[0], argv[1], argv[2],
                                          argv[3], argv[4], argv[5]);
 }
 

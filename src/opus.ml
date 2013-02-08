@@ -130,7 +130,7 @@ module Decoder = struct
 
   let apply_control control t = apply_control control t.decoder
 
-  external decode_float : decoder -> Ogg.Stream.t -> float array array -> 
+  external decode_float : decoder -> Ogg.Stream.t -> float array array ->
                           int -> int -> bool ->int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 
   let decode_float ?(decode_fec=false) t os buf ofs len =
