@@ -187,8 +187,11 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   ogg_packet *op = Packet_val(packet);
   int ret;
 
-  ret = opus_packet_get_nb_channels(op->packet);
-  check(ret);
+  /* This function is wrong... */
+  //ret = opus_packet_get_nb_channels(op->packet);
+
+  if (op->bytes < 10) check(OPUS_INVALID_PACKET);
+  ret = op->packet[9];
 
   CAMLreturn(Val_int(ret));
 }
