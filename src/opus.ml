@@ -83,6 +83,15 @@ module Decoder = struct
       comments = p2;
       decoder  = decoder }
 
+  external create_multistream : samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
+  let create_multistream ?(samplerate=48000) ~streams ~coupled_streams ~mapping p1 p2 =
+    if not (check_packet p1) then
+      raise Invalid_packet;
+    let decoder = create_multistream ~samplerate ~channels:(packet_channels p1) ~streams ~coupled_streams ~mapping in
+    { header   = p1;
+      comments = p2;
+      decoder  = decoder }
+
   external apply_control : control -> decoder -> unit = "ocaml_opus_decoder_ctl"
 
   let apply_control control t = apply_control control t.decoder
@@ -96,31 +105,6 @@ module Decoder = struct
   let comments t = comments t.comments
 
   let channels t = packet_channels t.header
-end
-
-module MSDecoder = struct
-  type decoder = Decoder.decoder
-  type t = Decoder.t
-
-  let check_packet = Decoder.check_packet
-
-  let packet_channels = Decoder.packet_channels
-
-  external create : samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
-
-  let create ?(samplerate=48000) ~streams ~coupled_streams ~mapping p1 p2 =
-    if not (check_packet p1) then
-      raise Invalid_packet;
-    let decoder = create ~samplerate ~channels:(packet_channels p1) ~streams ~coupled_streams ~mapping in
-    { Decoder.header   = p1;
-      Decoder.comments = p2;
-      Decoder.decoder  = decoder }
-
-  let comments = Decoder.comments
-
-  let channels = Decoder.channels
-
-  let decode_float = Decoder.decode_float
 end
 
 module Encoder = struct
@@ -174,22 +158,32 @@ module Encoder = struct
   type encoder
   type t = {
     header     : Ogg.Stream.packet;
-    comments   : Ogg.Stream.packet; 
+    comments   : Ogg.Stream.packet;
     os         : Ogg.Stream.t;
     samplerate : int;
     enc        : encoder
   }
 
-  external create : pre_skip:int -> comments:(string array) -> 
+  external create : pre_skip:int -> comments:(string array) ->
                     gain:int -> samplerate:int -> channels:int ->
                     application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_encoder_create_byte" "ocaml_opus_encoder_create"
 
   let create ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~application os =
-    let comments = List.map (fun (label, value) -> 
-      Printf.sprintf "%s=%s" label value) comments
-    in
+    let comments = List.map (fun (label, value) -> Printf.sprintf "%s=%s" label value) comments in
     let comments = Array.of_list comments in
     let enc,p1,p2 = create ~pre_skip ~comments ~gain ~samplerate ~channels ~application in
+    { os         = os;
+      header     = p1;
+      comments   = p2;
+      samplerate = samplerate;
+      enc        = enc }
+
+  external create_multistream : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
+
+  let create_multistream ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application os =
+    let comments = List.map (fun (label, value) -> Printf.sprintf "%s=%s" label value) comments in
+    let comments = Array.of_list comments in
+    let enc,p1,p2 = create_multistream ~pre_skip ~comments ~gain ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application in
     { os         = os;
       header     = p1;
       comments   = p2;
@@ -202,7 +196,7 @@ module Encoder = struct
 
   external apply_control : control -> t -> unit = "ocaml_opus_encoder_ctl"
 
-  external encode_float : frame_size:int -> encoder -> 
+  external encode_float : frame_size:int -> encoder ->
       float array array -> int -> int -> Ogg.Stream.t -> int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
 
   let encode_float ?(frame_size=20.) t buf ofs len =
@@ -212,33 +206,4 @@ module Encoder = struct
   external eos : Ogg.Stream.t -> encoder -> unit = "ocaml_opus_encode_eos"
 
   let eos t = eos t.os t.enc
-end
-
-module MSEncoder = struct
-  type encoder = Encoder.encoder
-  type t = Encoder.t
-
-  type application = Encoder.application
-
-  external create : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
-
-  let create ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application os =
-    let comments = List.map (fun (label, value) ->
-      Printf.sprintf "%s=%s" label value) comments
-    in
-    let comments = Array.of_list comments in
-    let enc,p1,p2 = create ~pre_skip ~comments ~gain ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application in
-    { Encoder.os         = os;
-      Encoder.header     = p1;
-      Encoder.comments   = p2;
-      Encoder.samplerate = samplerate;
-      Encoder.enc        = enc }
-
-  let encode_float = Encoder.encode_float
-
-  let header = Encoder.header
-
-  let comments = Encoder.comments
-
-  let eos = Encoder.eos
 end

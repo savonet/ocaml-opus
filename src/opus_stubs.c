@@ -157,7 +157,7 @@ CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _chans, va
   if (!dec) caml_raise_out_of_memory();
   int i;
 
-  assert (Wosize_val(_mapping) == chans);
+  if (Wosize_val(_mapping) != chans) caml_invalid_argument("mapping should have channels as length");
   for (i = 0; i < chans; i++)
     mapping[i] = Int_val(Field(_mapping, i));
 
@@ -291,6 +291,10 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
   CAMLparam2(_dec, ctl);
   CAMLlocal2(tag,v);
   OpusDecoder *dec = Dec_val(_dec)->decoder;
+
+  /* TODO: support multistream! */
+  assert(dec);
+
   if (Is_long(ctl)) {
     // Only ctl without argument here is reset state..
     opus_decoder_ctl(dec, OPUS_RESET_STATE);
@@ -530,7 +534,7 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   /* First encoded packet is the third one. */
   enc->packetno   = 1;
   enc->granulepos = 0;
-  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000 
+  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000
    * so this value is always an integer. */
   enc->samplerate_ratio = 48000 / sr;
 
@@ -573,14 +577,14 @@ CAMLprim value ocaml_opus_multistream_encoder_create(value _skip, value _comment
   if (!enc) caml_raise_out_of_memory();
 
   unsigned char mapping[chans];
-  assert(Wosize_val(_mapping) == chans);
+  if (Wosize_val(_mapping) != chans) caml_invalid_argument("mapping should have channels as length");
   for (i = 0; i < chans; i++)
     mapping[i] = Int_val(Field(_mapping, i));
 
   /* First encoded packet is the third one. */
   enc->packetno   = 1;
   enc->granulepos = 0;
-  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000 
+  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000
    * so this value is always an integer. */
   enc->samplerate_ratio = 48000 / sr;
 
@@ -674,6 +678,9 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
   CAMLlocal2(tag,v);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
+
+  /* TODO: multistream! */
+  assert(enc);
 
   if (Is_long(ctl)) {
     // Only ctl without argument here is reset state..

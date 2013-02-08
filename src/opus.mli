@@ -47,23 +47,13 @@ module Decoder : sig
   (** Create a decoder with given samplerate an number of channels. *)
   val create : ?samplerate:int -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
 
+  val create_multistream : ?samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
+
   val comments : t -> string * ((string * string) list)
 
   val channels : t -> int
 
   val apply_control : control -> t -> unit
-
-  val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
-end
-
-module MSDecoder: sig
-  type t
-
-  val create : ?samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
-
-  val comments : t -> string * ((string * string) list)
-
-  val channels : t -> int
 
   val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
 end
@@ -122,6 +112,8 @@ module Encoder : sig
                samplerate:int -> channels:int -> application:application ->
                Ogg.Stream.t -> t
 
+  val create_multistream : ?pre_skip:int -> ?comments:(string * string) list -> ?gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> Ogg.Stream.t -> t
+
   val header : t -> Ogg.Stream.packet
 
   val comments : t -> Ogg.Stream.packet
@@ -129,22 +121,6 @@ module Encoder : sig
   val apply_control : control -> t -> unit
 
   val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
-
-  val eos : t -> unit
-end
-
-module MSEncoder : sig
-  type t
-
-  type application = Encoder.application
-
-  val create : ?pre_skip:int -> ?comments:(string * string) list -> ?gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> Ogg.Stream.t -> t
-
-  val encode_float : ?frame_size:float -> t -> float array array -> int -> int -> int
-
-  val header : t -> Ogg.Stream.packet
-
-  val comments : t -> Ogg.Stream.packet
 
   val eos : t -> unit
 end
