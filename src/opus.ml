@@ -105,10 +105,17 @@ module Decoder = struct
       decoder  = decoder }
 
   external create_multistream : samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
-  let create_multistream ?(samplerate=48000) ?streams ~coupled_streams ?mapping p1 p2 =
-    let streams, mapping = streams_mapping ?streams ~coupled_streams ?mapping () in
+  let create_multistream ?(samplerate=48000) ?streams ?coupled_streams ?mapping p1 p2 =
     if not (check_packet p1) then raise Invalid_packet;
-    assert (Array.length mapping = packet_channels p1);
+    let channels = packet_channels p1 in
+    let streams, coupled_streams, mapping =
+      match coupled_streams with
+      | None -> channels, 0, Array.init channels (fun i -> i)
+      | Some coupled_streams ->
+        let streams, mapping = streams_mapping ?streams ~coupled_streams ?mapping () in
+        streams, coupled_streams, mapping
+    in
+    if Array.length mapping <> channels then invalid_arg (Printf.sprintf "mapping has %d channels, but %d expected" (Array.length mapping) channels);
     let decoder = create_multistream ~samplerate ~streams ~coupled_streams ~mapping in
     { header   = p1;
       comments = p2;
