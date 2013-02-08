@@ -181,6 +181,12 @@ CAMLprim value ocaml_opus_packet_check_header(value packet)
   CAMLreturn(Val_bool(ans));
 }
 
+static unsigned char packet_channels(ogg_packet *op)
+{
+  if (op->bytes < 10) check(OPUS_INVALID_PACKET);
+  return op->packet[9];
+}
+
 CAMLprim value ocaml_opus_decoder_channels(value packet)
 {
   CAMLparam1(packet);
@@ -190,8 +196,7 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   /* This function is wrong... */
   //ret = opus_packet_get_nb_channels(op->packet);
 
-  if (op->bytes < 10) check(OPUS_INVALID_PACKET);
-  ret = op->packet[9];
+  ret = packet_channels(op);
 
   CAMLreturn(Val_int(ret));
 }
@@ -224,7 +229,7 @@ CAMLprim value ocaml_opus_decoder_channel_mapping(value packet)
   family = op->packet[18];
   if (family == 0) caml_failwith("Channel mapping only present when family > 0.");
 
-  channels = op->packet[9];
+  channels = packet_channels(op);
 
   if (op->bytes < 19+2+channels) check(OPUS_INVALID_PACKET);
   streams = op->packet[19];
@@ -236,7 +241,7 @@ CAMLprim value ocaml_opus_decoder_channel_mapping(value packet)
   ans = caml_alloc_tuple(3);
   Store_field(ans, 0, Val_int(streams));
   Store_field(ans, 1, Val_int(coupled_streams));
-  Store_field(ans, 2, Val_int(mapping));
+  Store_field(ans, 2, mapping);
 
   CAMLreturn(ans);
 }
@@ -406,7 +411,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
       }
     }
 
-    if (chans != opus_packet_get_nb_channels(op.packet))
+    if (chans != packet_channels(&op))
       caml_invalid_argument("Wrong number of channels.");
 
     caml_release_runtime_system();

@@ -119,9 +119,8 @@ module Decoder = struct
       else
         channel_mapping p1
     in
-    Printf.printf "streams: %d, coupled_streams: %d\n%!" streams coupled_streams;
-    Printf.printf "map len: %d\n%!" (Array.length mapping);
-    Printf.printf "mapping: %s\n%!" (String.concat ", " (List.map string_of_int (Array.to_list mapping)));
+    (* Printf.printf "streams: %d, coupled_streams: %d\n%!" streams coupled_streams; *)
+    (* Printf.printf "mapping: %s\n%!" (String.concat ", " (List.map string_of_int (Array.to_list mapping))); *)
     let decoder = create_multistream ~samplerate ~streams ~coupled_streams ~mapping in
     { header   = p1;
       comments = p2;
