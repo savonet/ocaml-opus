@@ -143,12 +143,12 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   CAMLreturn(ans);
 }
 
-CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _chans, value _streams, value _coupled_streams, value _mapping)
+CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _streams, value _coupled_streams, value _mapping)
 {
   CAMLparam1(_mapping);
   CAMLlocal1(ans);
   opus_int32 sr = Int_val(_sr);
-  int chans = Int_val(_chans);
+  int chans = Wosize_val(_mapping);
   int streams = Int_val(_streams);
   int coupled_streams = Int_val(_coupled_streams);
   unsigned char mapping[chans];
@@ -157,7 +157,6 @@ CAMLprim value ocaml_opus_multistream_decoder_create(value _sr, value _chans, va
   if (!dec) caml_raise_out_of_memory();
   int i;
 
-  if (Wosize_val(_mapping) != chans) caml_invalid_argument("mapping should have channels as length");
   for (i = 0; i < chans; i++)
     mapping[i] = Int_val(Field(_mapping, i));
 
@@ -561,12 +560,12 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
 }
 
 /* TODO: factorize code with non-multistream function */
-CAMLprim value ocaml_opus_multistream_encoder_create(value _skip, value _comments, value _gain, value _sr, value _chans, value _streams, value _coupled_streams, value _mapping, value _application)
+CAMLprim value ocaml_opus_multistream_encoder_create(value _skip, value _comments, value _gain, value _sr, value _streams, value _coupled_streams, value _mapping, value _application)
 {
   CAMLparam1(_mapping);
   CAMLlocal2(_enc, ans);
   opus_int32 sr = Int_val(_sr);
-  int chans = Int_val(_chans);
+  int chans = Wosize_val(_mapping);
   int streams = Int_val(_streams);
   int coupled_streams = Int_val(_coupled_streams);
   int ret = 0;
@@ -577,7 +576,6 @@ CAMLprim value ocaml_opus_multistream_encoder_create(value _skip, value _comment
   if (!enc) caml_raise_out_of_memory();
 
   unsigned char mapping[chans];
-  if (Wosize_val(_mapping) != chans) caml_invalid_argument("mapping should have channels as length");
   for (i = 0; i < chans; i++)
     mapping[i] = Int_val(Field(_mapping, i));
 
@@ -614,7 +612,7 @@ CAMLprim value ocaml_opus_multistream_encoder_create_byte(value *argv, int argn)
 {
   return ocaml_opus_multistream_encoder_create(argv[0], argv[1], argv[2],
                                                argv[3], argv[4], argv[5],
-                                               argv[6], argv[7], argv[8]);
+                                               argv[6], argv[7]);
 }
 
 static opus_int32 bitrate_of_value(value v) {

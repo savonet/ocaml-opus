@@ -83,11 +83,11 @@ module Decoder = struct
       comments = p2;
       decoder  = decoder }
 
-  external create_multistream : samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
+  external create_multistream : samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
   let create_multistream ?(samplerate=48000) ~streams ~coupled_streams ~mapping p1 p2 =
-    if not (check_packet p1) then
-      raise Invalid_packet;
-    let decoder = create_multistream ~samplerate ~channels:(packet_channels p1) ~streams ~coupled_streams ~mapping in
+    if not (check_packet p1) then raise Invalid_packet;
+    assert (Array.length mapping = packet_channels p1);
+    let decoder = create_multistream ~samplerate ~streams ~coupled_streams ~mapping in
     { header   = p1;
       comments = p2;
       decoder  = decoder }
@@ -178,12 +178,12 @@ module Encoder = struct
       samplerate = samplerate;
       enc        = enc }
 
-  external create_multistream : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
+  external create_multistream : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
 
   let create_multistream ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application os =
     let comments = List.map (fun (label, value) -> Printf.sprintf "%s=%s" label value) comments in
     let comments = Array.of_list comments in
-    let enc,p1,p2 = create_multistream ~pre_skip ~comments ~gain ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application in
+    let enc,p1,p2 = create_multistream ~pre_skip ~comments ~gain ~samplerate ~streams ~coupled_streams ~mapping ~application in
     { os         = os;
       header     = p1;
       comments   = p2;
