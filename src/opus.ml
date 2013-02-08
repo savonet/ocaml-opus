@@ -41,6 +41,27 @@ type generic_control = [
   | `Get_lsb_depth   of int ref
 ]
 
+(* Utility function to compute default arguments for multistreams. *)
+let streams_mapping ?streams ~coupled_streams ?mapping () =
+  let channels =
+    match mapping with
+    | Some mapping -> Array.length mapping
+    | None -> 2 * coupled_streams
+  in
+  let streams =
+    match streams with
+    | Some streams -> streams
+    | None -> channels - 2*coupled_streams
+  in
+  if streams < 0 then invalid_arg "mapping";
+  let mapping =
+    match mapping with
+    | Some mapping -> mapping
+    | None -> Array.init (streams + coupled_streams) (fun i -> i)
+  in
+  streams, mapping
+
+
 module Decoder = struct
   type control = [
     | generic_control
@@ -84,7 +105,8 @@ module Decoder = struct
       decoder  = decoder }
 
   external create_multistream : samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
-  let create_multistream ?(samplerate=48000) ~streams ~coupled_streams ~mapping p1 p2 =
+  let create_multistream ?(samplerate=48000) ?streams ~coupled_streams ?mapping p1 p2 =
+    let streams, mapping = streams_mapping ?streams ~coupled_streams ?mapping () in
     if not (check_packet p1) then raise Invalid_packet;
     assert (Array.length mapping = packet_channels p1);
     let decoder = create_multistream ~samplerate ~streams ~coupled_streams ~mapping in
@@ -180,7 +202,8 @@ module Encoder = struct
 
   external create_multistream : pre_skip:int -> comments:(string array) -> gain:int -> samplerate:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> encoder*Ogg.Stream.packet*Ogg.Stream.packet = "ocaml_opus_multistream_encoder_create_byte" "ocaml_opus_multistream_encoder_create"
 
-  let create_multistream ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ~channels ~streams ~coupled_streams ~mapping ~application os =
+  let create_multistream ?(pre_skip=3840) ?(comments=[]) ?(gain=0) ~samplerate ?streams ~coupled_streams ?mapping ~application os =
+    let streams, mapping = streams_mapping ?streams ~coupled_streams ?mapping () in
     let comments = List.map (fun (label, value) -> Printf.sprintf "%s=%s" label value) comments in
     let comments = Array.of_list comments in
     let enc,p1,p2 = create_multistream ~pre_skip ~comments ~gain ~samplerate ~streams ~coupled_streams ~mapping ~application in

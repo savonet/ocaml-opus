@@ -47,7 +47,7 @@ module Decoder : sig
   (** Create a decoder with given samplerate an number of channels. *)
   val create : ?samplerate:int -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
 
-  val create_multistream : ?samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
+  val create_multistream : ?samplerate:int -> ?streams:int -> coupled_streams:int -> ?mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
 
   val comments : t -> string * ((string * string) list)
 
@@ -109,10 +109,16 @@ module Encoder : sig
   type t
 
   val create : ?pre_skip:int -> ?comments:((string*string) list) -> ?gain:int ->
-               samplerate:int -> channels:int -> application:application ->
-               Ogg.Stream.t -> t
+    samplerate:int -> channels:int -> application:application ->
+    Ogg.Stream.t -> t
 
-  val create_multistream : ?pre_skip:int -> ?comments:(string * string) list -> ?gain:int -> samplerate:int -> channels:int -> streams:int -> coupled_streams:int -> mapping:(int array) -> application:application -> Ogg.Stream.t -> t
+  (** Create a multistream encoder with given number of [streams] amongst which
+      there are [coupled_streams] stereo streams. The [mapping] argument
+      describes how channels (which should be >= [streams] + [coupled_streams])
+      are mapped; stereo streams are always encoded first and grouped by two. *)
+  val create_multistream : ?pre_skip:int -> ?comments:(string * string) list ->
+    ?gain:int -> samplerate:int -> ?streams:int -> coupled_streams:int ->
+    ?mapping:(int array) -> application:application -> Ogg.Stream.t -> t
 
   val header : t -> Ogg.Stream.packet
 
