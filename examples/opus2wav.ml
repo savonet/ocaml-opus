@@ -41,9 +41,14 @@ let output_short chan n =
 
 let usage = "usage: opus2wav [options] source destination"
 
+let multistream = ref false
+
 let () =
   Arg.parse
-    []
+    [
+      "-m", Arg.Set multistream, " Use multistream decoder.";
+      "--multistream", Arg.Set multistream, " Use multistream decoder.";
+    ]
     (
       let pnum = ref (-1) in
       (fun s -> incr pnum; match !pnum with
@@ -77,7 +82,12 @@ let () =
   let p2 = Ogg.Stream.get_packet os in
   let samplerate = 48000 in
   Printf.printf "Creating decoder...\n%!";
-  let dec = Opus.Decoder.create ~samplerate p1 p2  in
+  let dec =
+    if !multistream then
+      Opus.Decoder.create_multistream ~samplerate p1 p2
+    else
+      Opus.Decoder.create ~samplerate p1 p2
+  in
   let chans = Opus.Decoder.channels dec in
   Printf.printf "Channels: %d\n%!" chans;
   let vendor, comments = Opus.Decoder.comments dec in
@@ -94,7 +104,7 @@ let () =
     try
       while true do
         try
-          let len = 
+          let len =
             Opus.Decoder.decode_float dec os buf 0 buflen
           in
           for c = 0 to chans - 1 do
@@ -120,10 +130,10 @@ let () =
   output_string oc "fmt ";
   output_int oc 16;
   output_short oc 1; (* WAVE_FORMAT_PCM *)
-  output_short oc 2; (* channels *)
+  output_short oc chans; (* channels *)
   output_int oc samplerate; (* freq *)
-  output_int oc (samplerate * 2 * 2); (* bytes / s *)
-  output_short oc (2 * 2); (* block alignment *)
+  output_int oc (samplerate * 2 * chans); (* bytes / s *)
+  output_short oc (2 * chans); (* block alignment *)
   output_short oc 16; (* bits per sample *)
   output_string oc "data";
   output_int oc datalen;
