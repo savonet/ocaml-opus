@@ -47,12 +47,13 @@ module Decoder : sig
   (** Create a decoder with given samplerate an number of channels. *)
   val create : ?samplerate:int -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
 
-  val create_multistream : ?samplerate:int -> ?streams:int -> ?coupled_streams:int ->
-    ?mapping:int array -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
+  val create_multistream : ?samplerate:int -> Ogg.Stream.packet -> Ogg.Stream.packet -> t
 
   val comments : t -> string * ((string * string) list)
 
   val channels : t -> int
+
+  val channel_mapping_family : t -> int
 
   val apply_control : control -> t -> unit
 

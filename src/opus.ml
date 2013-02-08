@@ -73,6 +73,10 @@ module Decoder = struct
 
   external packet_channels : Ogg.Stream.packet -> int = "ocaml_opus_decoder_channels"
 
+  external channel_mapping_family : Ogg.Stream.packet -> int = "ocaml_opus_decoder_channel_mapping_family"
+
+  external channel_mapping : Ogg.Stream.packet -> (int * int * (int array)) = "ocaml_opus_decoder_channel_mapping"
+
   external comments : Ogg.Stream.packet -> string * string array = "ocaml_opus_comments"
 
   let comments p =
@@ -105,17 +109,19 @@ module Decoder = struct
       decoder  = decoder }
 
   external create_multistream : samplerate:int -> streams:int -> coupled_streams:int -> mapping:int array -> decoder = "ocaml_opus_decoder_create"
-  let create_multistream ?(samplerate=48000) ?streams ?coupled_streams ?mapping p1 p2 =
+  let create_multistream ?(samplerate=48000) p1 p2 =
     if not (check_packet p1) then raise Invalid_packet;
     let channels = packet_channels p1 in
+    let family = channel_mapping_family p1 in
     let streams, coupled_streams, mapping =
-      match coupled_streams with
-      | None -> channels, 0, Array.init channels (fun i -> i)
-      | Some coupled_streams ->
-        let streams, mapping = streams_mapping ?streams ~coupled_streams ?mapping () in
-        streams, coupled_streams, mapping
+      if family = 0 then
+        1, (if channels = 1 then 0 else 1), Array.init channels (fun i -> i)
+      else
+        channel_mapping p1
     in
-    if Array.length mapping <> channels then invalid_arg (Printf.sprintf "mapping has %d channels, but %d expected" (Array.length mapping) channels);
+    Printf.printf "streams: %d, coupled_streams: %d\n%!" streams coupled_streams;
+    Printf.printf "map len: %d\n%!" (Array.length mapping);
+    Printf.printf "mapping: %s\n%!" (String.concat ", " (List.map string_of_int (Array.to_list mapping)));
     let decoder = create_multistream ~samplerate ~streams ~coupled_streams ~mapping in
     { header   = p1;
       comments = p2;
@@ -134,6 +140,8 @@ module Decoder = struct
   let comments t = comments t.comments
 
   let channels t = packet_channels t.header
+
+  let channel_mapping_family t = channel_mapping_family t.header
 end
 
 module Encoder = struct

@@ -90,6 +90,7 @@ let () =
   in
   let chans = Opus.Decoder.channels dec in
   Printf.printf "Channels: %d\n%!" chans;
+  Printf.printf "Mapping family: %d\n%!" (Opus.Decoder.channel_mapping_family dec);
   let vendor, comments = Opus.Decoder.comments dec in
   Printf.printf "Vendor: %s\nComments:\n%!" vendor;
   List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;

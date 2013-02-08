@@ -185,7 +185,7 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
 {
   CAMLparam1(packet);
   ogg_packet *op = Packet_val(packet);
-  int ret;
+  unsigned char ret;
 
   /* This function is wrong... */
   //ret = opus_packet_get_nb_channels(op->packet);
@@ -194,6 +194,51 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   ret = op->packet[9];
 
   CAMLreturn(Val_int(ret));
+}
+
+CAMLprim value ocaml_opus_decoder_channel_mapping_family(value packet)
+{
+  CAMLparam1(packet);
+  ogg_packet *op = Packet_val(packet);
+  unsigned char ret;
+
+  /* This function is wrong... */
+  //ret = opus_packet_get_nb_channels(op->packet);
+
+  if (op->bytes < 19) check(OPUS_INVALID_PACKET);
+  ret = op->packet[18];
+
+  CAMLreturn(Val_int(ret));
+}
+
+CAMLprim value ocaml_opus_decoder_channel_mapping(value packet)
+{
+  CAMLparam1(packet);
+  CAMLlocal2(ans, mapping);
+  ogg_packet *op = Packet_val(packet);
+  unsigned char channels, family;
+  unsigned char streams, coupled_streams;
+  int i;
+
+  if (op->bytes < 19) check(OPUS_INVALID_PACKET);
+  family = op->packet[18];
+  if (family == 0) caml_failwith("Channel mapping only present when family > 0.");
+
+  channels = op->packet[9];
+
+  if (op->bytes < 19+2+channels) check(OPUS_INVALID_PACKET);
+  streams = op->packet[19];
+  coupled_streams = op->packet[20];
+  mapping = caml_alloc_tuple(channels);
+  for (i = 0; i < channels; i++)
+    Store_field(mapping, i, Val_int((unsigned char)op->packet[21+i]));
+
+  ans = caml_alloc_tuple(3);
+  Store_field(ans, 0, Val_int(streams));
+  Store_field(ans, 1, Val_int(coupled_streams));
+  Store_field(ans, 2, Val_int(mapping));
+
+  CAMLreturn(ans);
 }
 
 CAMLprim value ocaml_opus_comments(value packet)
