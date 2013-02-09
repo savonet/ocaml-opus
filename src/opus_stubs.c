@@ -201,6 +201,18 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   CAMLreturn(Val_int(ret));
 }
 
+CAMLprim value ocaml_opus_decoder_gain(value packet)
+{
+  CAMLparam1(packet);
+  ogg_packet *op = Packet_val(packet);
+  opus_uint16 ret;
+
+  if (op->bytes < 18) check(OPUS_INVALID_PACKET);
+  ret = op->packet[16] & (op->packet[17] << 8);
+
+  CAMLreturn(Val_int(ret));
+}
+
 CAMLprim value ocaml_opus_decoder_channel_mapping_family(value packet)
 {
   CAMLparam1(packet);

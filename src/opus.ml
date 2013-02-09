@@ -141,6 +141,14 @@ module Decoder = struct
   let channels t = packet_channels t.header
 
   let channel_mapping_family t = channel_mapping_family t.header
+
+  external gain : Ogg.Stream.packet -> int = "ocaml_opus_decoder_gain"
+  let gain t = gain t.header
+
+  let gain_coef t =
+    let g = gain t in
+    let g = float_of_int g in
+    10. ** (g /. (20. *. 256.))
 end
 
 module Encoder = struct

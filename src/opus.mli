@@ -53,6 +53,10 @@ module Decoder : sig
 
   val channels : t -> int
 
+  val gain : t -> int
+
+  val gain_coef : t -> float
+
   val channel_mapping_family : t -> int
 
   val apply_control : control -> t -> unit

@@ -90,6 +90,7 @@ let () =
   in
   let chans = Opus.Decoder.channels dec in
   Printf.printf "Channels: %d\n%!" chans;
+  Printf.printf "Gain: %d dB\n%!" (Opus.Decoder.gain dec);
   Printf.printf "Mapping family: %d\n%!" (Opus.Decoder.channel_mapping_family dec);
   let vendor, comments = Opus.Decoder.comments dec in
   Printf.printf "Vendor: %s\nComments:\n%!" vendor;
@@ -105,9 +106,7 @@ let () =
     try
       while true do
         try
-          let len =
-            Opus.Decoder.decode_float dec os buf 0 buflen
-          in
+          let len = Opus.Decoder.decode_float dec os buf 0 buflen in
           for c = 0 to chans - 1 do
             outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
           done
