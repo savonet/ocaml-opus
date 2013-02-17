@@ -35,5 +35,5 @@ dist: doc
 		VERSION=`echo "$$VERSION" | sed -e 's/AC_INIT([^,]*,\[\([^,]*\)\],.*)/\1/'`; \
 		mkdir $(PROGNAME)-$$VERSION; \
 		cp -R -L --parents $(DISTFILES) $(PROGNAME)-$$VERSION; \
-		tar zcvf $(PROGNAME)-$$VERSION.tar.gz $(PROGNAME)-$$VERSION; \
+		tar zcvf ../$(PROGNAME)-$$VERSION.tar.gz $(PROGNAME)-$$VERSION; \
 		rm -rf $(PROGNAME)-$$VERSION
