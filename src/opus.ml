@@ -175,7 +175,9 @@ module Encoder = struct
 
   let comments enc = enc.comments
 
-  external apply_control : control -> t -> unit = "ocaml_opus_encoder_ctl"
+  external apply_control : control -> encoder -> unit = "ocaml_opus_encoder_ctl"
+
+  let apply_control control enc = apply_control control enc.enc
 
   external encode_float : frame_size:int -> encoder -> 
       float array array -> int -> int -> Ogg.Stream.t -> int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
