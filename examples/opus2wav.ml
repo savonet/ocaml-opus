@@ -41,9 +41,14 @@ let output_short chan n =
 
 let usage = "usage: opus2wav [options] source destination"
 
+let multistream = ref false
+
 let () =
   Arg.parse
-    []
+    [
+      "-m", Arg.Set multistream, " Use multistream decoder.";
+      "--multistream", Arg.Set multistream, " Use multistream decoder.";
+    ]
     (
       let pnum = ref (-1) in
       (fun s -> incr pnum; match !pnum with
@@ -77,9 +82,16 @@ let () =
   let p2 = Ogg.Stream.get_packet os in
   let samplerate = 48000 in
   Printf.printf "Creating decoder...\n%!";
-  let dec = Opus.Decoder.create ~samplerate p1 p2  in
+  let dec =
+    if !multistream then
+      Opus.Decoder.create_multistream ~samplerate p1 p2
+    else
+      Opus.Decoder.create ~samplerate p1 p2
+  in
   let chans = Opus.Decoder.channels dec in
   Printf.printf "Channels: %d\n%!" chans;
+  Printf.printf "Gain: %d dB\n%!" (Opus.Decoder.gain dec);
+  Printf.printf "Mapping family: %d\n%!" (Opus.Decoder.channel_mapping_family dec);
   let vendor, comments = Opus.Decoder.comments dec in
   Printf.printf "Vendor: %s\nComments:\n%!" vendor;
   List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
@@ -94,9 +106,7 @@ let () =
     try
       while true do
         try
-          let len = 
-            Opus.Decoder.decode_float dec os buf 0 buflen
-          in
+          let len = Opus.Decoder.decode_float dec os buf 0 buflen in
           for c = 0 to chans - 1 do
             outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
           done
@@ -120,10 +130,10 @@ let () =
   output_string oc "fmt ";
   output_int oc 16;
   output_short oc 1; (* WAVE_FORMAT_PCM *)
-  output_short oc 2; (* channels *)
+  output_short oc chans; (* channels *)
   output_int oc samplerate; (* freq *)
-  output_int oc (samplerate * 2 * 2); (* bytes / s *)
-  output_short oc (2 * 2); (* block alignment *)
+  output_int oc (samplerate * 2 * chans); (* bytes / s *)
+  output_short oc (2 * chans); (* block alignment *)
   output_short oc 16; (* bits per sample *)
   output_string oc "data";
   output_int oc datalen;

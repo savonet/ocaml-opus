@@ -39,5 +39,5 @@ AC_SUBST(VERSION)
 AC_CONFIG_FILES([Makefile],[chmod a-w Makefile])
 AC_CONFIG_FILES([src/Makefile],[chmod a-w src/Makefile])
 AC_CONFIG_FILES([src/META])
-AC_CONFIG_FILES([examples/Makefile.opus2wav],[chmod a-w examples/Makefile.opus2wav])
+AC_CONFIG_FILES([examples/Makefile.defs.in],[chmod a-w examples/Makefile.defs])
 AC_OUTPUT
