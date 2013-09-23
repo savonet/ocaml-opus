@@ -53,7 +53,7 @@ module Decoder : sig
 
   val apply_control : control -> t -> unit
 
-  val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.t -> float array array -> int -> int -> int
+  val decode_float : ?decode_fec:bool -> t -> Ogg.Stream.stream -> float array array -> int -> int -> int
 end
 
 module Encoder : sig
@@ -108,7 +108,7 @@ module Encoder : sig
 
   val create : ?pre_skip:int -> ?comments:((string*string) list) -> ?gain:int ->
                samplerate:int -> channels:int -> application:application ->
-               Ogg.Stream.t -> t
+               Ogg.Stream.stream -> t
 
   val header : t -> Ogg.Stream.packet
 

@@ -87,7 +87,7 @@ module Decoder = struct
 
   let apply_control control t = apply_control control t.decoder
 
-  external decode_float : decoder -> Ogg.Stream.t -> float array array -> 
+  external decode_float : decoder -> Ogg.Stream.stream -> float array array -> 
                           int -> int -> bool ->int = "ocaml_opus_decoder_decode_float_byte" "ocaml_opus_decoder_decode_float"
 
   let decode_float ?(decode_fec=false) t os buf ofs len =
@@ -150,7 +150,7 @@ module Encoder = struct
   type t = {
     header     : Ogg.Stream.packet;
     comments   : Ogg.Stream.packet; 
-    os         : Ogg.Stream.t;
+    os         : Ogg.Stream.stream;
     samplerate : int;
     enc        : encoder
   }
@@ -180,13 +180,13 @@ module Encoder = struct
   let apply_control control enc = apply_control control enc.enc
 
   external encode_float : frame_size:int -> encoder -> 
-      float array array -> int -> int -> Ogg.Stream.t -> int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
+      float array array -> int -> int -> Ogg.Stream.stream -> int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
 
   let encode_float ?(frame_size=20.) t buf ofs len =
     let frame_size = frame_size *. (float t.samplerate) /. 1000. in
     encode_float (int_of_float frame_size) t.enc buf ofs len t.os
 
-  external eos : Ogg.Stream.t -> encoder -> unit = "ocaml_opus_encode_eos"
+  external eos : Ogg.Stream.stream -> encoder -> unit = "ocaml_opus_encode_eos"
 
   let eos t = eos t.os t.enc
 end
