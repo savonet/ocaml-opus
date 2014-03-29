@@ -72,7 +72,7 @@ let decoder os =
     ignore(init())
   in
   let decode feed =
-    let dec,chans,buf,_ = init () in
+    let dec,_,buf,_ = init () in
     let ret = Opus.Decoder.decode_float dec !os buf 0 buflen in
     feed (Array.map (fun x -> Array.sub x 0 ret) buf)
   in

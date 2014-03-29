@@ -184,7 +184,7 @@ module Encoder = struct
 
   let encode_float ?(frame_size=20.) t buf ofs len =
     let frame_size = frame_size *. (float t.samplerate) /. 1000. in
-    encode_float (int_of_float frame_size) t.enc buf ofs len t.os
+    encode_float ~frame_size:(int_of_float frame_size) t.enc buf ofs len t.os
 
   external eos : Ogg.Stream.stream -> encoder -> unit = "ocaml_opus_encode_eos"
 
