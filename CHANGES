@@ -1,3 +1,7 @@
+0.1.2 ()
+=====
+* Fix mono decoding.
+
 0.1.1 (03-08-2015)
 =====
 * Changed types to match new ocaml-ogg's API.

@@ -151,10 +151,16 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
 {
   CAMLparam1(packet);
   ogg_packet *op = Packet_val(packet);
-  int ret;
+  uint8_t *data = op->packet;
+  uint8_t version = *(data+8);
 
-  ret = opus_packet_get_nb_channels(op->packet);
-  check(ret);
+  if (op->bytes <= 10 || memcmp(op->packet, "OpusHead", 8))
+    caml_invalid_argument("Wrong header data.");
+
+  if (version != 1)
+    caml_invalid_argument("Wrong header version.");
+
+  uint8_t ret = *(data+9);
 
   CAMLreturn(Val_int(ret));
 }
