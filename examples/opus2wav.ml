@@ -88,8 +88,8 @@ let () =
   Printf.printf "Decoding...%!";
   let max_frame_size = 960*6 in
   let buflen = max_frame_size in
-  let buf = Array.init chans (fun _ -> Array.create buflen 0.) in
-  let outbuf = Array.create chans ([||] : float array) in
+  let buf = Array.init chans (fun _ -> Array.make buflen 0.) in
+  let outbuf = Array.make chans ([||] : float array) in
   (
     try
       while true do
