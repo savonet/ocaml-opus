@@ -39,6 +39,7 @@ type generic_control = [
   | `Get_bandwidth   of bandwidth ref
   | `Set_lsb_depth   of int
   | `Get_lsb_depth   of int ref
+  | `Set_phase_inversion_disabled of bool
 ]
 
 module Decoder = struct
