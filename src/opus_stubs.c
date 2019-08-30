@@ -276,7 +276,9 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
     get_value_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, dec, opus_decoder_ctl, OPUS_SET_LSB_DEPTH, v);
     get_ctl(tag, Get_lsb_depth, dec, opus_decoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+#ifdef OPUS_SET_PHASE_INVERSION_DISABLED
     set_ctl(tag, Set_phase_inversion_disabled, dec, opus_decoder_ctl, OPUS_SET_PHASE_INVERSION_DISABLED, v);
+#endif
 
     /* Decoder controls. */
     get_ctl(tag, Get_gain, dec, opus_decoder_ctl, OPUS_GET_GAIN, v, opus_int32);
@@ -603,7 +605,9 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
     get_value_ctl(tag, Get_bandwidth, enc, opus_encoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, enc, opus_encoder_ctl, OPUS_SET_LSB_DEPTH, v);
     get_ctl(tag, Get_lsb_depth, enc, opus_encoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+#ifdef OPUS_SET_PHASE_INVERSION_DISABLED
     set_ctl(tag, Set_phase_inversion_disabled, enc, opus_encoder_ctl, OPUS_SET_PHASE_INVERSION_DISABLED, v);
+#endif
     
     /* Encoder controls. */
     set_ctl(tag, Set_complexity, enc, opus_encoder_ctl, OPUS_SET_COMPLEXITY, v);

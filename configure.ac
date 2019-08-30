@@ -6,7 +6,7 @@ AC_MSG_RESULT(configuring $PACKAGE_STRING)
 AC_BASE_CHECKS()
 
 PKG_PROG_PKG_CONFIG()
-PKG_CONFIG_CHECK_MODULE([opus], [1.2])
+PKG_CONFIG_CHECK_MODULE([opus], [1.0.0])
 
 # Include a config.h
 AC_CONFIG_HEADERS([config.h:config.h.in])
