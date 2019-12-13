@@ -1,9 +1,3 @@
-# OCaml-Mad examples.
-#
-# Copyright 2003 by the Savonet team.
-#
-# $Id$
-
 all:
 	$(MAKE) -f Makefile.opus2wav $@
 
