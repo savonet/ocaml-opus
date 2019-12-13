@@ -1,7 +1,7 @@
 all:
 	$(MAKE) -f Makefile.opus2wav $@
 
-test:
+test: all
 	if [ ! -e test.opus ] ; then ffmpeg -f lavfi -i "sine=frequency=440:duration=5" -ac 2 test.opus ; fi
 	OCAMLRUNPARAM=b ./opus2wav test.opus test.wav
 
