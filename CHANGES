@@ -1,3 +1,7 @@
+0.1.4 (unreleased)
+=====
+* Set minimum opus version to 1.3.0
+
 0.1.3 (19-09-2019)
 =====
 * Added Set_phase_inversion_disabled
