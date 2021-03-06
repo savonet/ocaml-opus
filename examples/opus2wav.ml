@@ -24,8 +24,6 @@
   * @author Samuel Mimram
   *)
 
-open Unix
-
 let src = ref ""
 let dst = ref ""
 
@@ -42,21 +40,20 @@ let output_short chan n =
 let usage = "usage: opus2wav [options] source destination"
 
 let () =
-  Arg.parse
-    []
-    (
-      let pnum = ref (-1) in
-      (fun s -> incr pnum; match !pnum with
-      | 0 -> src := s
-      | 1 -> dst := s
-      | _ -> Printf.eprintf "Error: too many arguments\n"; exit 1
-      )
-    ) usage;
-  if !src = "" || !dst = "" then
-    (
-      Printf.printf "%s\n" usage;
-      exit 1
-    );
+  Arg.parse []
+    (let pnum = ref (-1) in
+     fun s ->
+       incr pnum;
+       match !pnum with
+         | 0 -> src := s
+         | 1 -> dst := s
+         | _ ->
+             Printf.eprintf "Error: too many arguments\n";
+             exit 1)
+    usage;
+  if !src = "" || !dst = "" then (
+    Printf.printf "%s\n" usage;
+    exit 1);
 
   let sync, fd = Ogg.Sync.create_from_file !src in
   Printf.printf "Checking file.\n%!";
@@ -70,44 +67,39 @@ let () =
     let packet = Ogg.Stream.get_packet os in
     assert (Opus.Decoder.check_packet packet);
     Printf.printf "Found an opus stream!\n%!";
-    os, packet
+    (os, packet)
   in
   let page = Ogg.Sync.read sync in
   Ogg.Stream.put_page os page;
   let p2 = Ogg.Stream.get_packet os in
   let samplerate = 48000 in
   Printf.printf "Creating decoder...\n%!";
-  let dec = Opus.Decoder.create ~samplerate p1 p2  in
+  let dec = Opus.Decoder.create ~samplerate p1 p2 in
   let chans = Opus.Decoder.channels dec in
   Printf.printf "Channels: %d\n%!" chans;
   let vendor, comments = Opus.Decoder.comments dec in
   Printf.printf "Vendor: %s\nComments:\n%!" vendor;
-  List.iter (fun (l,v) -> Printf.printf "- %s = %s\n%!" l v) comments;
+  List.iter (fun (l, v) -> Printf.printf "- %s = %s\n%!" l v) comments;
   Printf.printf "done.\n%!";
 
   Printf.printf "Decoding...%!";
-  let max_frame_size = 960*6 in
+  let max_frame_size = 960 * 6 in
   let buflen = max_frame_size in
   let buf = Array.init chans (fun _ -> Array.make buflen 0.) in
   let outbuf = Array.make chans ([||] : float array) in
-  (
-    try
-      while true do
-        try
-          let len = 
-            Opus.Decoder.decode_float dec os buf 0 buflen
-          in
-          for c = 0 to chans - 1 do
-            outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
-          done
-         with
-           | Ogg.Not_enough_data ->
-              let page = Ogg.Sync.read sync in
-              if Ogg.Page.serialno page = Ogg.Stream.serialno os then Ogg.Stream.put_page os page
-      done
-    with
-    | Ogg.End_of_stream -> ()
-  );
+  (try
+     while true do
+       try
+         let len = Opus.Decoder.decode_float dec os buf 0 buflen in
+         for c = 0 to chans - 1 do
+           outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
+         done
+       with Ogg.Not_enough_data ->
+         let page = Ogg.Sync.read sync in
+         if Ogg.Page.serialno page = Ogg.Stream.serialno os then
+           Ogg.Stream.put_page os page
+     done
+   with Ogg.End_of_stream -> ());
   Printf.printf "done.\n%!";
   Unix.close fd;
 
@@ -119,12 +111,18 @@ let () =
   output_string oc "WAVE";
   output_string oc "fmt ";
   output_int oc 16;
-  output_short oc 1; (* WAVE_FORMAT_PCM *)
-  output_short oc 2; (* channels *)
-  output_int oc samplerate; (* freq *)
-  output_int oc (samplerate * 2 * 2); (* bytes / s *)
-  output_short oc (2 * 2); (* block alignment *)
-  output_short oc 16; (* bits per sample *)
+  output_short oc 1;
+  (* WAVE_FORMAT_PCM *)
+  output_short oc 2;
+  (* channels *)
+  output_int oc samplerate;
+  (* freq *)
+  output_int oc (samplerate * 2 * 2);
+  (* bytes / s *)
+  output_short oc (2 * 2);
+  (* block alignment *)
+  output_short oc 16;
+  (* bits per sample *)
   output_string oc "data";
   output_int oc datalen;
 
@@ -132,7 +130,7 @@ let () =
     for c = 0 to chans - 1 do
       let x = outbuf.(c).(i) in
       let x = int_of_float (x *. 32767.) in
-      output_short oc x;
+      output_short oc x
     done
   done;
   close_out oc;
