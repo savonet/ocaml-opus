@@ -13,17 +13,23 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <ogg/ogg.h>
 #include <ocaml-ogg.h>
-#include <opus/opus.h>
-#include <opus/opus_multistream.h>
+#include <ogg/ogg.h>
+#include <opus.h>
+#include <opus_multistream.h>
+
+#include "config.h"
+
+#ifndef Bytes_val
+#define Bytes_val String_val
+#endif
 
 #ifdef BIGENDIAN
 // code from bits/byteswap.h (C) 1997, 1998 Free Software Foundation, Inc.
-#define int32le_to_native(x) \
-     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | \
-      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
-#define int16le_to_native(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
+#define int32le_to_native(x)                                                   \
+  ((((x)&0xff000000) >> 24) | (((x)&0x00ff0000) >> 8) |                        \
+   (((x)&0x0000ff00) << 8) | (((x)&0x000000ff) << 24))
+#define int16le_to_native(x) ((((x) >> 8) & 0xff) | (((x)&0xff) << 8))
 #else
 #define int32le_to_native(x) x
 #define int16le_to_native(x) x
@@ -33,93 +39,83 @@
 #define get_var(x) caml_hash_variant(#x)
 
 /* Macros to convert variants to controls. */
-#define set_ctl(tag, variant, handle, fn, name, v) \
-  if (tag == get_var(variant)) { \
-    check(fn(handle,name(Int_val(v)))); \
-    CAMLreturn(Val_unit); \
+#define set_ctl(tag, variant, handle, fn, name, v)                             \
+  if (tag == get_var(variant)) {                                               \
+    check(fn(handle, name(Int_val(v))));                                       \
+    CAMLreturn(Val_unit);                                                      \
   }
 
-#define set_value_ctl(tag, variant, handle, fn, name, v, convert) \
-  if (tag == get_var(variant)) { \
-    check(fn(handle,name(convert(v)))); \
-    CAMLreturn(Val_unit); \
+#define set_value_ctl(tag, variant, handle, fn, name, v, convert)              \
+  if (tag == get_var(variant)) {                                               \
+    check(fn(handle, name(convert(v))));                                       \
+    CAMLreturn(Val_unit);                                                      \
   }
 
-#define get_ctl(tag, variant, handle, fn, name, v, type) \
-  if (tag == get_var(variant)) { \
-    type name = (type)Int_val(Field(v,0)); \
-    check(fn(handle,name(&name))); \
-    Store_field(v,0,Val_int(name)); \
-    CAMLreturn(Val_unit); \
+#define get_ctl(tag, variant, handle, fn, name, v, type)                       \
+  if (tag == get_var(variant)) {                                               \
+    type name = (type)Int_val(Field(v, 0));                                    \
+    check(fn(handle, name(&name)));                                            \
+    Store_field(v, 0, Val_int(name));                                          \
+    CAMLreturn(Val_unit);                                                      \
   }
 
-#define get_value_ctl(tag, variant, handle, fn, name, v, type, convert) \
-  if (tag == get_var(variant)) { \
-    type name = (type)Int_val(Field(v,0)); \
-    check(fn(handle,name(&name))); \
-    Store_field(v,0,convert(name)); \
-    CAMLreturn(Val_unit); \
+#define get_value_ctl(tag, variant, handle, fn, name, v, type, convert)        \
+  if (tag == get_var(variant)) {                                               \
+    type name = (type)Int_val(Field(v, 0));                                    \
+    check(fn(handle, name(&name)));                                            \
+    Store_field(v, 0, convert(name));                                          \
+    CAMLreturn(Val_unit);                                                      \
   }
 
-static void check(int ret)
-{
+static void check(int ret) {
   if (ret < 0)
-    switch (ret)
-      {
-      case OPUS_BAD_ARG:
-        caml_invalid_argument("opus");
+    switch (ret) {
+    case OPUS_BAD_ARG:
+      caml_invalid_argument("opus");
 
-      case OPUS_BUFFER_TOO_SMALL:
-        caml_raise_constant(*caml_named_value("opus_exn_buffer_too_small"));
+    case OPUS_BUFFER_TOO_SMALL:
+      caml_raise_constant(*caml_named_value("opus_exn_buffer_too_small"));
 
-      case OPUS_INTERNAL_ERROR:
-        caml_raise_constant(*caml_named_value("opus_exn_internal_error"));
+    case OPUS_INTERNAL_ERROR:
+      caml_raise_constant(*caml_named_value("opus_exn_internal_error"));
 
-      case OPUS_INVALID_PACKET:
-        caml_raise_constant(*caml_named_value("opus_exn_invalid_packet"));
+    case OPUS_INVALID_PACKET:
+      caml_raise_constant(*caml_named_value("opus_exn_invalid_packet"));
 
-      case OPUS_UNIMPLEMENTED:
-        caml_raise_constant(*caml_named_value("opus_exn_unimplemented"));
+    case OPUS_UNIMPLEMENTED:
+      caml_raise_constant(*caml_named_value("opus_exn_unimplemented"));
 
-      case OPUS_INVALID_STATE:
-        caml_raise_constant(*caml_named_value("opus_exn_invalid_state"));
+    case OPUS_INVALID_STATE:
+      caml_raise_constant(*caml_named_value("opus_exn_invalid_state"));
 
-      case OPUS_ALLOC_FAIL:
-        caml_raise_constant(*caml_named_value("opus_exn_alloc_fail"));
+    case OPUS_ALLOC_FAIL:
+      caml_raise_constant(*caml_named_value("opus_exn_alloc_fail"));
 
-      default:
-        caml_failwith("Unknown opus error");
-      }
+    default:
+      caml_failwith("Unknown opus error");
+    }
 }
 
-CAMLprim value ocaml_opus_version_string(value unit)
-{
+CAMLprim value ocaml_opus_version_string(value unit) {
   CAMLparam0();
   CAMLreturn(caml_copy_string(opus_get_version_string()));
 }
 
 /***** Decoder ******/
 
-#define Dec_val(v) (*(OpusDecoder**)Data_custom_val(v))
+#define Dec_val(v) (*(OpusDecoder **)Data_custom_val(v))
 
-static void finalize_dec(value v)
-{
+static void finalize_dec(value v) {
   OpusDecoder *dec = Dec_val(v);
   opus_decoder_destroy(dec);
 }
 
-static struct custom_operations dec_ops =
-  {
-    "ocaml_opus_dec",
-    finalize_dec,
-    custom_compare_default,
-    custom_hash_default,
-    custom_serialize_default,
-    custom_deserialize_default
-  };
+static struct custom_operations dec_ops = {
+    "ocaml_opus_dec",         finalize_dec,
+    custom_compare_default,   custom_hash_default,
+    custom_serialize_default, custom_deserialize_default};
 
-CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
-{
+CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans) {
   CAMLparam0();
   CAMLlocal1(ans);
   opus_int32 sr = Int_val(_sr);
@@ -130,13 +126,12 @@ CAMLprim value ocaml_opus_decoder_create(value _sr, value _chans)
   dec = opus_decoder_create(sr, chans, &ret);
 
   check(ret);
-  ans = caml_alloc_custom(&dec_ops, sizeof(OpusDecoder*), 0, 1);
+  ans = caml_alloc_custom(&dec_ops, sizeof(OpusDecoder *), 0, 1);
   Dec_val(ans) = dec;
   CAMLreturn(ans);
 }
 
-CAMLprim value ocaml_opus_packet_check_header(value packet)
-{
+CAMLprim value ocaml_opus_packet_check_header(value packet) {
   CAMLparam1(packet);
   ogg_packet *op = Packet_val(packet);
   int ans = 0;
@@ -147,12 +142,11 @@ CAMLprim value ocaml_opus_packet_check_header(value packet)
   CAMLreturn(Val_bool(ans));
 }
 
-CAMLprim value ocaml_opus_decoder_channels(value packet)
-{
+CAMLprim value ocaml_opus_decoder_channels(value packet) {
   CAMLparam1(packet);
   ogg_packet *op = Packet_val(packet);
   uint8_t *data = op->packet;
-  uint8_t version = *(data+8);
+  uint8_t version = *(data + 8);
 
   if (op->bytes <= 10 || memcmp(op->packet, "OpusHead", 8))
     caml_invalid_argument("Wrong header data.");
@@ -160,13 +154,12 @@ CAMLprim value ocaml_opus_decoder_channels(value packet)
   if (version != 1)
     caml_invalid_argument("Wrong header version.");
 
-  uint8_t ret = *(data+9);
+  uint8_t ret = *(data + 9);
 
   CAMLreturn(Val_int(ret));
 }
 
-CAMLprim value ocaml_opus_comments(value packet)
-{
+CAMLprim value ocaml_opus_comments(value packet) {
   CAMLparam1(packet);
   CAMLlocal2(ans, comments);
   ogg_packet *op = Packet_val(packet);
@@ -177,46 +170,47 @@ CAMLprim value ocaml_opus_comments(value packet)
   int off = 8;
   /* Vendor */
 
-  if (off+4 > op->bytes)
+  if (off + 4 > op->bytes)
     check(OPUS_INVALID_PACKET);
 
-  opus_int32 vendor_length = int32le_to_native((opus_int32)*(op->packet+off));
+  opus_int32 vendor_length =
+      int32le_to_native((opus_int32) * (op->packet + off));
   off += 4;
 
-  if (off+vendor_length > op->bytes)
+  if (off + vendor_length > op->bytes)
     check(OPUS_INVALID_PACKET);
 
   Store_field(ans, 0, caml_alloc_string(vendor_length));
-  memcpy(String_val(Field(ans,0)), op->packet+off, vendor_length);
+  memcpy(Bytes_val(Field(ans, 0)), op->packet + off, vendor_length);
 
   off += vendor_length;
 
   /* Comments */
 
-  if (off+4 > op->bytes)
+  if (off + 4 > op->bytes)
     check(OPUS_INVALID_PACKET);
 
-  opus_int32 comments_length = int32le_to_native((opus_int32)*(op->packet+off));
+  opus_int32 comments_length =
+      int32le_to_native((opus_int32) * (op->packet + off));
   off += 4;
 
   comments = caml_alloc_tuple(comments_length);
   Store_field(ans, 1, comments);
   opus_int32 i, len;
-  for(i = 0; i < comments_length; i++)
-    {
-      if (off+4 > op->bytes)
-        check(OPUS_INVALID_PACKET);
+  for (i = 0; i < comments_length; i++) {
+    if (off + 4 > op->bytes)
+      check(OPUS_INVALID_PACKET);
 
-      len = int32le_to_native((opus_int32)*(op->packet+off));
-      off += 4;
+    len = int32le_to_native((opus_int32) * (op->packet + off));
+    off += 4;
 
-      if (off+len > op->bytes)
-        check(OPUS_INVALID_PACKET);
+    if (off + len > op->bytes)
+      check(OPUS_INVALID_PACKET);
 
-      Store_field(comments, i, caml_alloc_string(len));
-      memcpy(String_val(Field(comments, i)), op->packet+off, len);
-      off += len;
-    }
+    Store_field(comments, i, caml_alloc_string(len));
+    memcpy(Bytes_val(Field(comments, i)), op->packet + off, len);
+    off += len;
+  }
 
   CAMLreturn(ans);
 }
@@ -240,44 +234,48 @@ static opus_int32 bandwidth_of_value(value v) {
 
 static value value_of_bandwidth(opus_int32 a) {
   switch (a) {
-    case OPUS_AUTO:
-      return get_var(Auto);
-    case OPUS_BANDWIDTH_NARROWBAND:
-      return get_var(Narrow_band);
-    case OPUS_BANDWIDTH_MEDIUMBAND:
-      return get_var(Medium_band);
-    case OPUS_BANDWIDTH_WIDEBAND:
-      return get_var(Wide_band);
-    case OPUS_BANDWIDTH_SUPERWIDEBAND:
-      return get_var(Super_wide_band);
-    case OPUS_BANDWIDTH_FULLBAND:
-      return get_var(Full_band);
-    default:
-      caml_failwith("Unknown opus error");
+  case OPUS_AUTO:
+    return get_var(Auto);
+  case OPUS_BANDWIDTH_NARROWBAND:
+    return get_var(Narrow_band);
+  case OPUS_BANDWIDTH_MEDIUMBAND:
+    return get_var(Medium_band);
+  case OPUS_BANDWIDTH_WIDEBAND:
+    return get_var(Wide_band);
+  case OPUS_BANDWIDTH_SUPERWIDEBAND:
+    return get_var(Super_wide_band);
+  case OPUS_BANDWIDTH_FULLBAND:
+    return get_var(Full_band);
+  default:
+    caml_failwith("Unknown opus error");
   }
 }
 
-CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
-{
+CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec) {
   CAMLparam2(_dec, ctl);
-  CAMLlocal2(tag,v);
+  CAMLlocal2(tag, v);
   OpusDecoder *dec = Dec_val(_dec);
   if (Is_long(ctl)) {
     // Only ctl without argument here is reset state..
     opus_decoder_ctl(dec, OPUS_RESET_STATE);
     CAMLreturn(Val_unit);
   } else {
-    v   = Field(ctl,1);
-    tag = Field(ctl,0);
+    v = Field(ctl, 1);
+    tag = Field(ctl, 0);
 
     /* Generic controls. */
-    get_ctl(tag, Get_final_range, dec, opus_decoder_ctl, OPUS_GET_FINAL_RANGE, v, opus_uint32);
-    get_ctl(tag, Get_pitch, dec, opus_decoder_ctl, OPUS_GET_PITCH, v, opus_int32);
-    get_value_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
+    get_ctl(tag, Get_final_range, dec, opus_decoder_ctl, OPUS_GET_FINAL_RANGE,
+            v, opus_uint32);
+    get_ctl(tag, Get_pitch, dec, opus_decoder_ctl, OPUS_GET_PITCH, v,
+            opus_int32);
+    get_value_ctl(tag, Get_bandwidth, dec, opus_decoder_ctl, OPUS_GET_BANDWIDTH,
+                  v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, dec, opus_decoder_ctl, OPUS_SET_LSB_DEPTH, v);
-    get_ctl(tag, Get_lsb_depth, dec, opus_decoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+    get_ctl(tag, Get_lsb_depth, dec, opus_decoder_ctl, OPUS_GET_LSB_DEPTH, v,
+            opus_int32);
 #ifdef OPUS_SET_PHASE_INVERSION_DISABLED
-    set_ctl(tag, Set_phase_inversion_disabled, dec, opus_decoder_ctl, OPUS_SET_PHASE_INVERSION_DISABLED, v);
+    set_ctl(tag, Set_phase_inversion_disabled, dec, opus_decoder_ctl,
+            OPUS_SET_PHASE_INVERSION_DISABLED, v);
 #endif
 
     /* Decoder controls. */
@@ -285,11 +283,12 @@ CAMLprim value ocaml_opus_decoder_ctl(value ctl, value _dec)
     set_ctl(tag, Set_gain, dec, opus_decoder_ctl, OPUS_SET_GAIN, v);
   }
 
-  caml_failwith("Unknown opus error"); 
+  caml_failwith("Unknown opus error");
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf, value _ofs, value _len, value _fec)
-{
+CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
+                                               value _ofs, value _len,
+                                               value _fec) {
   CAMLparam3(_dec, _os, buf);
   CAMLlocal1(chan);
   ogg_stream_state *os = Stream_state_val(_os);
@@ -302,20 +301,20 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
   int total_samples = 0;
   int ret;
 
-  int   chans = Wosize_val(buf); 
-  float *pcm  = malloc(chans * len * sizeof(float));
+  int chans = Wosize_val(buf);
+  float *pcm = malloc(chans * len * sizeof(float));
   if (pcm == NULL)
     caml_raise_out_of_memory();
 
   int i, c;
 
   while (total_samples < len) {
-    ret = ogg_stream_packetout(os,&op);
+    ret = ogg_stream_packetout(os, &op);
     /* returned values are:
      * 1: ok
      * 0: not enough data. in this case
      *    we return the number of samples
-     *    decoded if > 0 and raise 
+     *    decoded if > 0 and raise
      *    Ogg_not_enough_data otherwise
      * -1: out of sync */
     if (ret == -1)
@@ -344,49 +343,42 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < ret; i++)
-        Store_double_field(chan, ofs+total_samples+i, pcm[i*chans+c]);
+        Store_double_field(chan, ofs + total_samples + i, pcm[i * chans + c]);
     }
     total_samples += ret;
-    len           -= ret;
+    len -= ret;
   }
 
   free(pcm);
   CAMLreturn(Val_int(total_samples));
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn)
-{
-  return ocaml_opus_decoder_decode_float(argv[0], argv[1], argv[2], 
-                                         argv[3], argv[4], argv[5]);
+CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn) {
+  return ocaml_opus_decoder_decode_float(argv[0], argv[1], argv[2], argv[3],
+                                         argv[4], argv[5]);
 }
 
 /***** Encoder *****/
 
 typedef struct encoder_t {
   OpusEncoder *encoder;
-  int         samplerate_ratio;
+  int samplerate_ratio;
   ogg_int64_t granulepos;
   ogg_int64_t packetno;
 } encoder_t;
 
-#define Enc_val(v) (*(encoder_t**)Data_custom_val(v))
+#define Enc_val(v) (*(encoder_t **)Data_custom_val(v))
 
-static void finalize_enc(value v)
-{
+static void finalize_enc(value v) {
   encoder_t *enc = Enc_val(v);
   opus_encoder_destroy(enc->encoder);
   free(enc);
 }
 
-static struct custom_operations enc_ops =
-  {
-    "ocaml_opus_enc",
-    finalize_enc,
-    custom_compare_default,
-    custom_hash_default,
-    custom_serialize_default,
-    custom_deserialize_default
-  };
+static struct custom_operations enc_ops = {
+    "ocaml_opus_enc",         finalize_enc,
+    custom_compare_default,   custom_hash_default,
+    custom_serialize_default, custom_deserialize_default};
 
 static opus_int32 application_of_value(value v) {
   if (v == get_var(Voip))
@@ -401,32 +393,32 @@ static opus_int32 application_of_value(value v) {
 
 static value value_of_application(opus_int32 a) {
   switch (a) {
-    case OPUS_APPLICATION_VOIP:
-      return get_var(Voip);
-    case OPUS_APPLICATION_AUDIO:
-      return get_var(Audio);
-    case OPUS_APPLICATION_RESTRICTED_LOWDELAY:
-      return get_var(Restricted_lowdelay);
-    default:
-      caml_failwith("Unknown opus error");
+  case OPUS_APPLICATION_VOIP:
+    return get_var(Voip);
+  case OPUS_APPLICATION_AUDIO:
+    return get_var(Audio);
+  case OPUS_APPLICATION_RESTRICTED_LOWDELAY:
+    return get_var(Restricted_lowdelay);
+  default:
+    caml_failwith("Unknown opus error");
   }
 }
 
 static char header_packet[19] = {
-  /* Identifier. */
- 'O', 'p', 'u', 's',
- 'H', 'e', 'a', 'd',
- /* version, channels count, pre-skip (16 bits, unsigned, 
-  *                                    little endian) */
- 1,    2,   0,   0,
- /* Samperate (32 bits, unsigned, little endian) */
- 0,    0,   0,   0,
- /* output gain (16 bits, signed, little endian), channels mapping familly,
-  * stream count (always 0 in this implementation) */
- 0,    0,  0 };
+    /* Identifier. */
+    'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
+    /* version, channels count, pre-skip (16 bits, unsigned,
+     *                                    little endian) */
+    1, 2, 0, 0,
+    /* Samperate (32 bits, unsigned, little endian) */
+    0, 0, 0, 0,
+    /* output gain (16 bits, signed, little endian), channels mapping familly,
+     * stream count (always 0 in this implementation) */
+    0, 0, 0};
 
-static void pack_header(ogg_packet *op, opus_int32 sr, int channels, opus_int16 pre_skip, opus_int16 gain) {
-  op->bytes  = sizeof(header_packet);
+static void pack_header(ogg_packet *op, opus_int32 sr, int channels,
+                        opus_int16 pre_skip, opus_int16 gain) {
+  op->bytes = sizeof(header_packet);
   op->packet = malloc(op->bytes);
   if (op->packet == NULL)
     caml_raise_out_of_memory();
@@ -435,16 +427,16 @@ static void pack_header(ogg_packet *op, opus_int32 sr, int channels, opus_int16 
 
   /* Now fill data. */
   op->packet[9] = channels;
-  memcpy(op->packet+10, &int16le_to_native(pre_skip), sizeof(opus_int16));
-  memcpy(op->packet+12, &int32le_to_native(sr), sizeof(opus_int32));
-  memcpy(op->packet+16, &int16le_to_native(gain), sizeof(opus_int16));
+  memcpy(op->packet + 10, &int16le_to_native(pre_skip), sizeof(opus_int16));
+  memcpy(op->packet + 12, &int32le_to_native(sr), sizeof(opus_int32));
+  memcpy(op->packet + 16, &int16le_to_native(gain), sizeof(opus_int16));
 
   op->b_o_s = 1;
   op->e_o_s = op->granulepos = op->packetno = 0;
 }
 
 static void pack_comments(ogg_packet *op, char *vendor, value comments) {
-  int  i;
+  int i;
   long pos = 0;
   opus_int32 vendor_length = strlen(vendor);
   char *comment;
@@ -465,20 +457,21 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   pos += 8;
 
   /* Vendor. */
-  memcpy(op->packet+8, &int32le_to_native(vendor_length), sizeof(opus_int32));
-  memcpy(op->packet+12,vendor,vendor_length);
+  memcpy(op->packet + 8, &int32le_to_native(vendor_length), sizeof(opus_int32));
+  memcpy(op->packet + 12, vendor, vendor_length);
   pos += 4 + vendor_length;
 
   /* Comments length. */
-  memcpy(op->packet+pos, &comments_len, sizeof(opus_int32));
+  memcpy(op->packet + pos, &comments_len, sizeof(opus_int32));
   pos += 4;
 
   /* Comments. */
   for (i = 0; i < comments_len; i++) {
-    comment = String_val(Field(comments, i));
+    comment = (char *)Bytes_val(Field(comments, i));
     comment_length = caml_string_length(Field(comments, i));
-    memcpy(op->packet+pos, &int32le_to_native(comment_length), sizeof(opus_int32));
-    memcpy(op->packet+pos+4, comment, comment_length);
+    memcpy(op->packet + pos, &int32le_to_native(comment_length),
+           sizeof(opus_int32));
+    memcpy(op->packet + pos + 4, comment, comment_length);
     pos += 4 + comment_length;
   }
 
@@ -486,8 +479,9 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   op->packetno = 1;
 }
 
-CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _gain, value _sr, value _chans, value _application)
-{
+CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments,
+                                         value _gain, value _sr, value _chans,
+                                         value _application) {
   CAMLparam0();
   CAMLlocal2(_enc, ans);
   opus_int32 sr = Int_val(_sr);
@@ -498,9 +492,9 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   if (enc == NULL)
     caml_raise_out_of_memory();
   /* First encoded packet is the third one. */
-  enc->packetno   = 1;
+  enc->packetno = 1;
   enc->granulepos = 0;
-  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000 
+  /* Value samplerates are: 48000, 24000, 16000, 12000, 8000
    * so this value is always an integer. */
   enc->samplerate_ratio = 48000 / sr;
 
@@ -513,7 +507,7 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   enc->encoder = opus_encoder_create(sr, chans, app, &ret);
 
   check(ret);
-  _enc = caml_alloc_custom(&enc_ops, sizeof(encoder_t*), 0, 1);
+  _enc = caml_alloc_custom(&enc_ops, sizeof(encoder_t *), 0, 1);
   Enc_val(_enc) = enc;
 
   ans = caml_alloc_tuple(3);
@@ -525,10 +519,9 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments, value _ga
   CAMLreturn(ans);
 }
 
-CAMLprim value ocaml_opus_encoder_create_byte(value *argv, int argn)
-{
-  return ocaml_opus_encoder_create(argv[0], argv[1], argv[2],
-                                   argv[3], argv[4], argv[5]);
+CAMLprim value ocaml_opus_encoder_create_byte(value *argv, int argn) {
+  return ocaml_opus_encoder_create(argv[0], argv[1], argv[2], argv[3], argv[4],
+                                   argv[5]);
 }
 
 static opus_int32 bitrate_of_value(value v) {
@@ -538,8 +531,8 @@ static opus_int32 bitrate_of_value(value v) {
     if (v == get_var(Bitrate_max))
       return OPUS_BITRATE_MAX;
   } else {
-    if (Field(v,0) == get_var(Bitrate))
-      return Int_val(Field(v,1));
+    if (Field(v, 0) == get_var(Bitrate))
+      return Int_val(Field(v, 1));
   }
 
   caml_failwith("Unknown opus error");
@@ -549,15 +542,15 @@ CAMLprim value value_of_bitrate(opus_int32 a) {
   CAMLparam0();
   CAMLlocal1(ret);
   switch (a) {
-    case OPUS_AUTO:
-      CAMLreturn(get_var(Auto));
-    case OPUS_BITRATE_MAX:
-      CAMLreturn(get_var(Voice));
-    default:
-      ret = caml_alloc_tuple(2);
-      Store_field(ret,0,get_var(Bitrate));
-      Store_field(ret,1,Val_int(a));
-      CAMLreturn(ret);
+  case OPUS_AUTO:
+    CAMLreturn(get_var(Auto));
+  case OPUS_BITRATE_MAX:
+    CAMLreturn(get_var(Voice));
+  default:
+    ret = caml_alloc_tuple(2);
+    Store_field(ret, 0, get_var(Bitrate));
+    Store_field(ret, 1, Val_int(a));
+    CAMLreturn(ret);
   }
 }
 
@@ -574,21 +567,20 @@ static opus_int32 signal_of_value(value v) {
 
 static value value_of_signal(opus_int32 a) {
   switch (a) {
-    case OPUS_AUTO:
-      return get_var(Auto);
-    case OPUS_SIGNAL_VOICE:
-      return get_var(Voice);
-    case OPUS_SIGNAL_MUSIC:
-      return get_var(Music);
-    default:
-      caml_failwith("Unknown opus error");
+  case OPUS_AUTO:
+    return get_var(Auto);
+  case OPUS_SIGNAL_VOICE:
+    return get_var(Voice);
+  case OPUS_SIGNAL_MUSIC:
+    return get_var(Music);
+  default:
+    caml_failwith("Unknown opus error");
   }
 }
 
-CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
-{
+CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc) {
   CAMLparam2(_enc, ctl);
-  CAMLlocal2(tag,v);
+  CAMLlocal2(tag, v);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
   if (Is_long(ctl)) {
@@ -596,54 +588,78 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc)
     opus_encoder_ctl(enc, OPUS_RESET_STATE);
     CAMLreturn(Val_unit);
   } else {
-    v   = Field(ctl,1);
-    tag = Field(ctl,0);
+    v = Field(ctl, 1);
+    tag = Field(ctl, 0);
 
     /* Generic controls. */
-    get_ctl(tag, Get_final_range, enc, opus_encoder_ctl, OPUS_GET_FINAL_RANGE, v, opus_uint32);
-    get_ctl(tag, Get_pitch, enc, opus_encoder_ctl, OPUS_GET_PITCH, v, opus_int32);
-    get_value_ctl(tag, Get_bandwidth, enc, opus_encoder_ctl, OPUS_GET_BANDWIDTH, v, opus_int32, value_of_bandwidth);
+    get_ctl(tag, Get_final_range, enc, opus_encoder_ctl, OPUS_GET_FINAL_RANGE,
+            v, opus_uint32);
+    get_ctl(tag, Get_pitch, enc, opus_encoder_ctl, OPUS_GET_PITCH, v,
+            opus_int32);
+    get_value_ctl(tag, Get_bandwidth, enc, opus_encoder_ctl, OPUS_GET_BANDWIDTH,
+                  v, opus_int32, value_of_bandwidth);
     set_ctl(tag, Set_lsb_depth, enc, opus_encoder_ctl, OPUS_SET_LSB_DEPTH, v);
-    get_ctl(tag, Get_lsb_depth, enc, opus_encoder_ctl, OPUS_GET_LSB_DEPTH, v, opus_int32);
+    get_ctl(tag, Get_lsb_depth, enc, opus_encoder_ctl, OPUS_GET_LSB_DEPTH, v,
+            opus_int32);
 #ifdef OPUS_SET_PHASE_INVERSION_DISABLED
-    set_ctl(tag, Set_phase_inversion_disabled, enc, opus_encoder_ctl, OPUS_SET_PHASE_INVERSION_DISABLED, v);
+    set_ctl(tag, Set_phase_inversion_disabled, enc, opus_encoder_ctl,
+            OPUS_SET_PHASE_INVERSION_DISABLED, v);
 #endif
-    
+
     /* Encoder controls. */
     set_ctl(tag, Set_complexity, enc, opus_encoder_ctl, OPUS_SET_COMPLEXITY, v);
-    get_ctl(tag, Get_complexity, enc, opus_encoder_ctl, OPUS_GET_COMPLEXITY, v, opus_int32);
+    get_ctl(tag, Get_complexity, enc, opus_encoder_ctl, OPUS_GET_COMPLEXITY, v,
+            opus_int32);
     set_ctl(tag, Set_vbr, enc, opus_encoder_ctl, OPUS_SET_VBR, v);
     get_ctl(tag, Get_vbr, enc, opus_encoder_ctl, OPUS_GET_VBR, v, opus_int32);
-    set_ctl(tag, Set_vbr_constraint, enc, opus_encoder_ctl, OPUS_SET_VBR_CONSTRAINT, v);
-    get_ctl(tag, Get_vbr_constraint, enc, opus_encoder_ctl, OPUS_GET_VBR_CONSTRAINT, v, opus_int32);
-    set_ctl(tag, Set_force_channels, enc, opus_encoder_ctl, OPUS_SET_FORCE_CHANNELS, v);
-    get_ctl(tag, Get_force_channels, enc, opus_encoder_ctl, OPUS_GET_FORCE_CHANNELS, v, opus_int32);
-    get_ctl(tag, Get_samplerate, enc, opus_encoder_ctl, OPUS_GET_SAMPLE_RATE, v, opus_int32);
-    get_ctl(tag, Get_lookhead, enc, opus_encoder_ctl, OPUS_GET_LOOKAHEAD, v, opus_int32);
+    set_ctl(tag, Set_vbr_constraint, enc, opus_encoder_ctl,
+            OPUS_SET_VBR_CONSTRAINT, v);
+    get_ctl(tag, Get_vbr_constraint, enc, opus_encoder_ctl,
+            OPUS_GET_VBR_CONSTRAINT, v, opus_int32);
+    set_ctl(tag, Set_force_channels, enc, opus_encoder_ctl,
+            OPUS_SET_FORCE_CHANNELS, v);
+    get_ctl(tag, Get_force_channels, enc, opus_encoder_ctl,
+            OPUS_GET_FORCE_CHANNELS, v, opus_int32);
+    get_ctl(tag, Get_samplerate, enc, opus_encoder_ctl, OPUS_GET_SAMPLE_RATE, v,
+            opus_int32);
+    get_ctl(tag, Get_lookhead, enc, opus_encoder_ctl, OPUS_GET_LOOKAHEAD, v,
+            opus_int32);
     set_ctl(tag, Set_inband_fec, enc, opus_encoder_ctl, OPUS_SET_INBAND_FEC, v);
-    get_ctl(tag, Get_inband_fec, enc, opus_encoder_ctl, OPUS_GET_INBAND_FEC, v, opus_int32);
-    set_ctl(tag, Set_packet_loss_perc, enc, opus_encoder_ctl, OPUS_SET_PACKET_LOSS_PERC, v);
-    get_ctl(tag, Get_packet_loss_perc, enc, opus_encoder_ctl, OPUS_GET_PACKET_LOSS_PERC, v, opus_int32);
+    get_ctl(tag, Get_inband_fec, enc, opus_encoder_ctl, OPUS_GET_INBAND_FEC, v,
+            opus_int32);
+    set_ctl(tag, Set_packet_loss_perc, enc, opus_encoder_ctl,
+            OPUS_SET_PACKET_LOSS_PERC, v);
+    get_ctl(tag, Get_packet_loss_perc, enc, opus_encoder_ctl,
+            OPUS_GET_PACKET_LOSS_PERC, v, opus_int32);
     set_ctl(tag, Set_dtx, enc, opus_encoder_ctl, OPUS_SET_DTX, v);
     get_ctl(tag, Get_dtx, enc, opus_encoder_ctl, OPUS_GET_DTX, v, opus_int32);
 
     /* These guys have polynmorphic variant as argument.. */
-    set_value_ctl(tag, Set_bitrate, enc, opus_encoder_ctl, OPUS_SET_BITRATE, v, bitrate_of_value);
-    get_value_ctl(tag, Get_bitrate, enc, opus_encoder_ctl, OPUS_GET_BITRATE, v, opus_int32, value_of_bitrate);
-    set_value_ctl(tag, Set_max_bandwidth, enc, opus_encoder_ctl, OPUS_SET_MAX_BANDWIDTH, v, bandwidth_of_value);
-    get_value_ctl(tag, Get_max_bandwidth, enc, opus_encoder_ctl, OPUS_GET_MAX_BANDWIDTH, v, opus_int32, value_of_bandwidth);
-    set_value_ctl(tag, Set_bandwidth, enc, opus_encoder_ctl, OPUS_SET_BANDWIDTH, v, bandwidth_of_value);
-    set_value_ctl(tag, Set_signal, enc, opus_encoder_ctl, OPUS_SET_SIGNAL, v, signal_of_value);
-    get_value_ctl(tag, Get_signal, enc, opus_encoder_ctl, OPUS_GET_SIGNAL, v, opus_int32, value_of_signal);
-    set_value_ctl(tag, Set_application, enc, opus_encoder_ctl, OPUS_SET_APPLICATION, v, application_of_value);
-    get_value_ctl(tag, Get_application, enc, opus_encoder_ctl, OPUS_GET_APPLICATION, v, opus_int32, value_of_application);
+    set_value_ctl(tag, Set_bitrate, enc, opus_encoder_ctl, OPUS_SET_BITRATE, v,
+                  bitrate_of_value);
+    get_value_ctl(tag, Get_bitrate, enc, opus_encoder_ctl, OPUS_GET_BITRATE, v,
+                  opus_int32, value_of_bitrate);
+    set_value_ctl(tag, Set_max_bandwidth, enc, opus_encoder_ctl,
+                  OPUS_SET_MAX_BANDWIDTH, v, bandwidth_of_value);
+    get_value_ctl(tag, Get_max_bandwidth, enc, opus_encoder_ctl,
+                  OPUS_GET_MAX_BANDWIDTH, v, opus_int32, value_of_bandwidth);
+    set_value_ctl(tag, Set_bandwidth, enc, opus_encoder_ctl, OPUS_SET_BANDWIDTH,
+                  v, bandwidth_of_value);
+    set_value_ctl(tag, Set_signal, enc, opus_encoder_ctl, OPUS_SET_SIGNAL, v,
+                  signal_of_value);
+    get_value_ctl(tag, Get_signal, enc, opus_encoder_ctl, OPUS_GET_SIGNAL, v,
+                  opus_int32, value_of_signal);
+    set_value_ctl(tag, Set_application, enc, opus_encoder_ctl,
+                  OPUS_SET_APPLICATION, v, application_of_value);
+    get_value_ctl(tag, Get_application, enc, opus_encoder_ctl,
+                  OPUS_GET_APPLICATION, v, opus_int32, value_of_application);
   }
 
   caml_failwith("Unknown opus error");
 }
 
-CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf, value _off, value _len, value _os)
-{
+CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
+                                       value _off, value _len, value _os) {
   CAMLparam3(_enc, buf, _os);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
@@ -662,7 +678,7 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
   unsigned char *data = malloc(max_data_bytes);
   if (data == NULL)
     caml_raise_out_of_memory();
-  float *pcm = malloc(chans*frame_size*sizeof(float));
+  float *pcm = malloc(chans * frame_size * sizeof(float));
   if (data == NULL)
     caml_raise_out_of_memory();
   int i, j, c;
@@ -670,8 +686,9 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
   int loops = len / frame_size;
   for (i = 0; i < loops; i++) {
     for (j = 0; j < frame_size; j++)
-      for(c = 0; c < chans; c++)
-        pcm[chans*j+c] = Double_field(Field(buf, c), off+j+i*frame_size);
+      for (c = 0; c < chans; c++)
+        pcm[chans * j + c] =
+            Double_field(Field(buf, c), off + j + i * frame_size);
 
     caml_release_runtime_system();
     ret = opus_encode_float(enc, pcm, frame_size, data, max_data_bytes);
@@ -688,28 +705,28 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
     if (ret < 2)
       continue;
 
-    handler->granulepos += frame_size*handler->samplerate_ratio;
+    handler->granulepos += frame_size * handler->samplerate_ratio;
     handler->packetno++;
 
-    op.bytes  = ret; 
+    op.bytes = ret;
     op.packet = data;
     op.b_o_s = op.e_o_s = 0;
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
     if (ogg_stream_packetin(os, &op) != 0)
-      caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));;
+      caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
+    ;
   }
   free(pcm);
   free(data);
 
-  CAMLreturn(Val_int(loops*frame_size));
+  CAMLreturn(Val_int(loops * frame_size));
 }
 
-CAMLprim value ocaml_opus_encode_float_byte(value *argv, int argn)
-{
-  return ocaml_opus_encode_float(argv[0], argv[1], argv[2],
-                                 argv[3], argv[4], argv[5]);
+CAMLprim value ocaml_opus_encode_float_byte(value *argv, int argn) {
+  return ocaml_opus_encode_float(argv[0], argv[1], argv[2], argv[3], argv[4],
+                                 argv[5]);
 }
 
 CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
@@ -718,16 +735,17 @@ CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
   ogg_packet op;
   encoder_t *handler = Enc_val(_enc);
   handler->packetno++;
-  
-  op.bytes  = 0;
+
+  op.bytes = 0;
   op.packet = NULL;
-  op.b_o_s  = 0;
-  op.e_o_s  = 1;
+  op.b_o_s = 0;
+  op.e_o_s = 1;
   op.packetno = handler->packetno;
   op.granulepos = handler->granulepos;
 
   if (ogg_stream_packetin(os, &op) != 0)
-    caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));;
+    caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
+  ;
 
   CAMLreturn(Val_unit);
 }
