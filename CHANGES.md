@@ -1,3 +1,7 @@
+0.2.1 (unreleased)
+=====
+- Fix compilation on big-endian architectures (#5, #6).
+
 0.2.0 (08-03-2021)
 =====
 * Set minimum opus version to 1.3.0
