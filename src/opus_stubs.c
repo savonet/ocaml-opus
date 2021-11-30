@@ -427,9 +427,12 @@ static void pack_header(ogg_packet *op, opus_int32 sr, int channels,
 
   /* Now fill data. */
   op->packet[9] = channels;
-  memcpy(op->packet + 10, &int16le_to_native(pre_skip), sizeof(opus_int16));
-  memcpy(op->packet + 12, &int32le_to_native(sr), sizeof(opus_int32));
-  memcpy(op->packet + 16, &int16le_to_native(gain), sizeof(opus_int16));
+  opus_int16 pre_skip_native = int16le_to_native(pre_skip);
+  memcpy(op->packet + 10, &pre_skip_native, sizeof(opus_int16));
+  opus_int32 sr_native = int32le_to_native(sr);
+  memcpy(op->packet + 12, &sr_native, sizeof(opus_int32));
+  opus_int16 gain_native = int16le_to_native(gain);
+  memcpy(op->packet + 16, &gain_native, sizeof(opus_int16));
 
   op->b_o_s = 1;
   op->e_o_s = op->granulepos = op->packetno = 0;
@@ -457,7 +460,8 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   pos += 8;
 
   /* Vendor. */
-  memcpy(op->packet + 8, &int32le_to_native(vendor_length), sizeof(opus_int32));
+  opus_int32 vendor_length_native = int32le_to_native(vendor_length);
+  memcpy(op->packet + 8, &vendor_length_native, sizeof(opus_int32));
   memcpy(op->packet + 12, vendor, vendor_length);
   pos += 4 + vendor_length;
 
@@ -469,7 +473,8 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
   for (i = 0; i < comments_len; i++) {
     comment = (char *)Bytes_val(Field(comments, i));
     comment_length = caml_string_length(Field(comments, i));
-    memcpy(op->packet + pos, &int32le_to_native(comment_length),
+    opus_int32 comment_length_native = int32le_to_native(comment_length);
+    memcpy(op->packet + pos, &comment_length_native,
            sizeof(opus_int32));
     memcpy(op->packet + pos + 4, comment, comment_length);
     pos += 4 + comment_length;
