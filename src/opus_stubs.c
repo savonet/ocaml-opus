@@ -474,8 +474,7 @@ static void pack_comments(ogg_packet *op, char *vendor, value comments) {
     comment = (char *)Bytes_val(Field(comments, i));
     comment_length = caml_string_length(Field(comments, i));
     opus_int32 comment_length_native = int32le_to_native(comment_length);
-    memcpy(op->packet + pos, &comment_length_native,
-           sizeof(opus_int32));
+    memcpy(op->packet + pos, &comment_length_native, sizeof(opus_int32));
     memcpy(op->packet + pos + 4, comment, comment_length);
     pos += 4 + comment_length;
   }

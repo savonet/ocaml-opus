@@ -1,4 +1,4 @@
-0.2.1 (unreleased)
+0.2.1 (02-01-2022)
 =====
 - Fix compilation on big-endian architectures (#5, #6).
 
