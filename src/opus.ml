@@ -169,15 +169,27 @@ module Encoder = struct
   external encode_float :
     frame_size:int ->
     encoder ->
+    Ogg.Stream.stream ->
     float array array ->
     int ->
     int ->
-    Ogg.Stream.stream ->
     int = "ocaml_opus_encode_float_byte" "ocaml_opus_encode_float"
 
-  let encode_float ?(frame_size = 20.) t buf ofs len =
+  external encode_float_ba :
+    frame_size:int ->
+    encoder ->
+    Ogg.Stream.stream ->
+    (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t array ->
+    int ->
+    int ->
+    int = "ocaml_opus_encode_float_ba_byte" "ocaml_opus_encode_float_ba"
+
+  let mk_encode_float fn ?(frame_size = 20.) t =
     let frame_size = frame_size *. float t.samplerate /. 1000. in
-    encode_float ~frame_size:(int_of_float frame_size) t.enc buf ofs len t.os
+    fn ~frame_size:(int_of_float frame_size) t.enc t.os
+
+  let encode_float = mk_encode_float encode_float
+  let encode_float_ba = mk_encode_float encode_float_ba
 
   external eos : Ogg.Stream.stream -> encoder -> unit = "ocaml_opus_encode_eos"
 

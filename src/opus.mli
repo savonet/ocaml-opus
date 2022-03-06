@@ -100,5 +100,13 @@ module Encoder : sig
   val encode_float :
     ?frame_size:float -> t -> float array array -> int -> int -> int
 
+  val encode_float_ba :
+    ?frame_size:float ->
+    t ->
+    (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t array ->
+    int ->
+    int ->
+    int
+
   val eos : t -> unit
 end

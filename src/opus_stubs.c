@@ -1,4 +1,5 @@
 #include <caml/alloc.h>
+#include <caml/bigarray.h>
 #include <caml/callback.h>
 #include <caml/custom.h>
 #include <caml/fail.h>
@@ -662,8 +663,8 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc) {
   caml_failwith("Unknown opus error");
 }
 
-CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
-                                       value _off, value _len, value _os) {
+CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
+                                       value buf, value _off, value _len) {
   CAMLparam3(_enc, buf, _os);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
@@ -731,6 +732,84 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value buf,
 CAMLprim value ocaml_opus_encode_float_byte(value *argv, int argn) {
   return ocaml_opus_encode_float(argv[0], argv[1], argv[2], argv[3], argv[4],
                                  argv[5]);
+}
+
+CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
+                                          value _os, value buf, value _ofs,
+                                          value _len) {
+  CAMLparam3(_enc, buf, _os);
+  encoder_t *handler = Enc_val(_enc);
+  OpusEncoder *enc = handler->encoder;
+  ogg_stream_state *os = Stream_state_val(_os);
+  ogg_packet op;
+  int len = Int_val(_len);
+  int ofs = Int_val(_ofs);
+  int chans = Wosize_val(buf);
+  int frame_size = Int_val(_frame_size);
+
+  if (chans == 0)
+    CAMLreturn(Val_int(0));
+
+  if (Caml_ba_array_val(Field(buf, 0))->dim[0] < ofs + len)
+    caml_failwith("Invalid length or offset!");
+
+  if (len < frame_size)
+    caml_raise_constant(*caml_named_value("opus_exn_buffer_too_small"));
+
+  /* This is the recommended value */
+  int max_data_bytes = 4000;
+  unsigned char *data = malloc(max_data_bytes);
+  if (data == NULL)
+    caml_raise_out_of_memory();
+  float *pcm = malloc(chans * frame_size * sizeof(float));
+  if (data == NULL)
+    caml_raise_out_of_memory();
+  int i, j, c;
+  int ret;
+  int loops = len / frame_size;
+  for (i = 0; i < loops; i++) {
+    for (j = 0; j < frame_size; j++)
+      for (c = 0; c < chans; c++)
+        pcm[chans * j + c] = ((float *)Caml_ba_data_val(
+            Field(buf, c)))[j + i * frame_size + ofs];
+
+    caml_release_runtime_system();
+    ret = opus_encode_float(enc, pcm, frame_size, data, max_data_bytes);
+    caml_acquire_runtime_system();
+
+    if (ret < 0) {
+      free(pcm);
+      free(data);
+    }
+    check(ret);
+
+    /* From the documentation: If the return value is 1 byte,
+     * then the packet does not need to be transmitted (DTX). */
+    if (ret < 2)
+      continue;
+
+    handler->granulepos += frame_size * handler->samplerate_ratio;
+    handler->packetno++;
+
+    op.bytes = ret;
+    op.packet = data;
+    op.b_o_s = op.e_o_s = 0;
+    op.packetno = handler->packetno;
+    op.granulepos = handler->granulepos;
+
+    if (ogg_stream_packetin(os, &op) != 0)
+      caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
+    ;
+  }
+  free(pcm);
+  free(data);
+
+  CAMLreturn(Val_int(loops * frame_size));
+}
+
+CAMLprim value ocaml_opus_encode_float_ba_byte(value *argv, int argn) {
+  return ocaml_opus_encode_float_ba(argv[0], argv[1], argv[2], argv[3], argv[4],
+                                    argv[5]);
 }
 
 CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
