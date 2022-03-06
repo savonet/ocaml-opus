@@ -1,3 +1,9 @@
 (executable
  (name opus2wav)
+ (modules opus2wav)
+ (libraries opus))
+
+(executable
+ (name wav2opus)
+ (modules wav2opus)
  (libraries opus))

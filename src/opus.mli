@@ -46,6 +46,15 @@ module Decoder : sig
     int ->
     int ->
     int
+
+  val decode_float_ba :
+    ?decode_fec:bool ->
+    t ->
+    Ogg.Stream.stream ->
+    (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t array ->
+    int ->
+    int ->
+    int
 end
 
 module Encoder : sig

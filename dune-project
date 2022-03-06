@@ -18,5 +18,5 @@
   conf-pkg-config
   dune
   dune-configurator
-  (ogg (>= 0.7.0)))
+  (ogg (>= 0.7.1)))
 )

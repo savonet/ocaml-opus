@@ -359,6 +359,78 @@ CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn) {
                                          argv[4], argv[5]);
 }
 
+CAMLprim value ocaml_opus_decoder_decode_float_ba(value _dec, value _os, value buf,
+                                               value _ofs, value _len,
+                                               value _fec) {
+  CAMLparam3(_dec, _os, buf);
+  CAMLlocal1(chan);
+  ogg_stream_state *os = Stream_state_val(_os);
+  ogg_packet op;
+  OpusDecoder *dec = Dec_val(_dec);
+  int decode_fec = Int_val(_fec);
+
+  int ofs = Int_val(_ofs);
+  int len = Int_val(_len);
+  int total_samples = 0;
+  int ret;
+
+  int chans = Wosize_val(buf);
+  float *pcm = malloc(chans * len * sizeof(float));
+  if (pcm == NULL)
+    caml_raise_out_of_memory();
+
+  int i, c;
+
+  while (total_samples < len) {
+    ret = ogg_stream_packetout(os, &op);
+    /* returned values are:
+     * 1: ok
+     * 0: not enough data. in this case
+     *    we return the number of samples
+     *    decoded if > 0 and raise
+     *    Ogg_not_enough_data otherwise
+     * -1: out of sync */
+    if (ret == -1)
+      caml_raise_constant(*caml_named_value("ogg_exn_out_of_sync"));
+
+    if (ret == 0) {
+      free(pcm);
+      if (total_samples > 0) {
+        CAMLreturn(Val_int(total_samples));
+      } else {
+        caml_raise_constant(*caml_named_value("ogg_exn_not_enough_data"));
+      }
+    }
+
+    if (chans != opus_packet_get_nb_channels(op.packet))
+      caml_invalid_argument("Wrong number of channels.");
+
+    caml_release_runtime_system();
+    ret = opus_decode_float(dec, op.packet, op.bytes, pcm, len, decode_fec);
+    caml_acquire_runtime_system();
+
+    if (ret < 0) {
+      free(pcm);
+      check(ret);
+    }
+    for (c = 0; c < chans; c++) {
+      chan = Field(buf, c);
+      for (i = 0; i < ret; i++)
+         ((float *)Caml_ba_data_val(chan))[ofs + total_samples + i] = pcm[i * chans + c];
+    }
+    total_samples += ret;
+    len -= ret;
+  }
+
+  free(pcm);
+  CAMLreturn(Val_int(total_samples));
+}
+
+CAMLprim value ocaml_opus_decoder_decode_float_ba_byte(value *argv, int argn) {
+  return ocaml_opus_decoder_decode_float_ba(argv[0], argv[1], argv[2], argv[3],
+                                         argv[4], argv[5]);
+}
+
 /***** Encoder *****/
 
 typedef struct encoder_t {

@@ -1,0 +1,18 @@
+(executable
+ (name gen_wav)
+ (modules gen_wav))
+
+(rule
+ (alias runtest)
+ (package opus)
+ (deps
+  (:gen_wav ./gen_wav.exe)
+  (:opus2wav ../examples/opus2wav.exe)
+  (:wav2opus ../examples/wav2opus.exe))
+ (action
+  (progn
+   (run %{gen_wav})
+   (run %{wav2opus} gen.wav output.ogg)
+   (run %{wav2opus} -ba gen.wav output-ba.ogg)
+   (run %{opus2wav} output.ogg output.wav)
+   (run %{opus2wav} -ba output-ba.ogg output-ba.wav))))

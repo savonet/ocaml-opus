@@ -89,6 +89,19 @@ module Decoder = struct
   let decode_float ?(decode_fec = false) t os buf ofs len =
     decode_float t.decoder os buf ofs len decode_fec
 
+  external decode_float_ba :
+    decoder ->
+    Ogg.Stream.stream ->
+    (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t array ->
+    int ->
+    int ->
+    bool ->
+    int
+    = "ocaml_opus_decoder_decode_float_ba_byte" "ocaml_opus_decoder_decode_float_ba"
+
+  let decode_float_ba ?(decode_fec = false) t os buf ofs len =
+    decode_float_ba t.decoder os buf ofs len decode_fec
+
   let comments t = comments t.comments
   let channels t = channels t.header
 end

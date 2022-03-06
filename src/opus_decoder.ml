@@ -23,7 +23,7 @@ let check = Opus.Decoder.check_packet
 let buflen = Opus.recommended_frame_size
 let decoder_samplerate = ref 48000
 
-let decoder os =
+let decoder ~decode_float ~make_float ~sub_float os =
   let decoder = ref None in
   let packet1 = ref None in
   let packet2 = ref None in
@@ -50,19 +50,14 @@ let decoder os =
           let dec =
             Opus.Decoder.create ~samplerate:!decoder_samplerate packet1 packet2
           in
-          (* This buffer is created once. The call to Array.sub
-           * below makes a fresh array out of it to pass to
-           * liquidsoap. *)
           let chans = Opus.Decoder.channels dec in
           let meta = Opus.Decoder.comments dec in
-          let chan _ = Array.make buflen 0. in
-          let buf = Array.init chans chan in
-          decoder := Some (dec, chans, buf, meta);
-          (dec, chans, buf, meta)
+          decoder := Some (dec, chans, meta);
+          (dec, chans, meta)
       | Some dec -> dec
   in
   let info () =
-    let _, chans, _, meta = init () in
+    let _, chans, meta = init () in
     ({ Ogg_decoder.channels = chans; sample_rate = !decoder_samplerate }, meta)
   in
   let restart new_os =
@@ -71,17 +66,33 @@ let decoder os =
     ignore (init ())
   in
   let decode feed =
-    let dec, _, buf, _ = init () in
-    let ret = Opus.Decoder.decode_float dec !os buf 0 buflen in
-    feed (Array.map (fun x -> Array.sub x 0 ret) buf)
+    let dec, chans, _ = init () in
+    let chan _ = make_float buflen in
+    let buf = Array.init chans chan in
+    let ret = decode_float dec !os buf 0 buflen in
+    feed (Array.map (fun x -> sub_float x 0 ret) buf)
   in
-  Ogg_decoder.Audio
-    {
-      Ogg_decoder.name = "opus";
-      info;
-      decode;
-      restart;
-      samples_of_granulepos = (fun x -> x);
-    }
+  {
+    Ogg_decoder.name = "opus";
+    info;
+    decode;
+    restart;
+    samples_of_granulepos = (fun x -> x);
+  }
 
-let register () = Hashtbl.add Ogg_decoder.ogg_decoders "opus" (check, decoder)
+let register () =
+  Hashtbl.add Ogg_decoder.ogg_decoders "opus"
+    ( check,
+      fun os ->
+        Ogg_decoder.Audio
+          (decoder ~decode_float:Opus.Decoder.decode_float
+             ~make_float:(fun len -> Array.make len 0.)
+             ~sub_float:Array.sub os) );
+  Hashtbl.add Ogg_decoder.ogg_decoders "opus"
+    ( check,
+      fun os ->
+        Ogg_decoder.Audio_ba
+          (decoder ~decode_float:Opus.Decoder.decode_float_ba
+             ~make_float:
+               (Bigarray.Array1.create Bigarray.float32 Bigarray.c_layout)
+             ~sub_float:Bigarray.Array1.sub os) )

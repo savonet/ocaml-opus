@@ -38,9 +38,11 @@ let output_short chan n =
   output_char chan (char_of_int ((n lsr 8) land 0xff))
 
 let usage = "usage: opus2wav [options] source destination"
+let use_ba = ref false
 
 let () =
-  Arg.parse []
+  Arg.parse
+    [("-ba", Arg.Set use_ba, "Use big arrays")]
     (let pnum = ref (-1) in
      fun s ->
        incr pnum;
@@ -85,15 +87,31 @@ let () =
   Printf.printf "Decoding...%!";
   let max_frame_size = 960 * 6 in
   let buflen = max_frame_size in
-  let buf = Array.init chans (fun _ -> Array.make buflen 0.) in
   let outbuf = Array.make chans ([||] : float array) in
+  let decode () =
+    if !use_ba then (
+      let buf =
+        Array.init chans (fun _ ->
+            Bigarray.Array1.create Bigarray.float32 Bigarray.c_layout buflen)
+      in
+      let len = Opus.Decoder.decode_float_ba dec os buf 0 buflen in
+      for c = 0 to chans - 1 do
+        let pcm = Array.make len 0. in
+        for i = 0 to len - 1 do
+          pcm.(i) <- buf.(c).{i}
+        done;
+        outbuf.(c) <- pcm
+      done)
+    else (
+      let buf = Array.init chans (fun _ -> Array.make buflen 0.) in
+      let len = Opus.Decoder.decode_float dec os buf 0 buflen in
+      for c = 0 to chans - 1 do
+        outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
+      done)
+  in
   (try
      while true do
-       try
-         let len = Opus.Decoder.decode_float dec os buf 0 buflen in
-         for c = 0 to chans - 1 do
-           outbuf.(c) <- Array.append outbuf.(c) (Array.sub buf.(c) 0 len)
-         done
+       try decode ()
        with Ogg.Not_enough_data ->
          let page = Ogg.Sync.read sync in
          if Ogg.Page.serialno page = Ogg.Stream.serialno os then
