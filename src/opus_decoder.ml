@@ -23,7 +23,7 @@ let check = Opus.Decoder.check_packet
 let buflen = Opus.recommended_frame_size
 let decoder_samplerate = ref 48000
 
-let decoder ~decode_float ~make_float ~sub_float os =
+let decoder os =
   let decoder = ref None in
   let packet1 = ref None in
   let packet2 = ref None in
@@ -65,34 +65,28 @@ let decoder ~decode_float ~make_float ~sub_float os =
     decoder := None;
     ignore (init ())
   in
-  let decode feed =
+  let decode ~decode_float ~make_float ~sub_float feed =
     let dec, chans, _ = init () in
     let chan _ = make_float buflen in
     let buf = Array.init chans chan in
     let ret = decode_float dec !os buf 0 buflen in
     feed (Array.map (fun x -> sub_float x 0 ret) buf)
   in
-  {
-    Ogg_decoder.name = "opus";
-    info;
-    decode;
-    restart;
-    samples_of_granulepos = (fun x -> x);
-  }
+  let decoder ~decode_float ~make_float ~sub_float =
+    {
+      Ogg_decoder.name = "opus";
+      info;
+      decode = decode ~decode_float ~make_float ~sub_float;
+      restart;
+      samples_of_granulepos = (fun x -> x);
+    }
+  in
+  Ogg_decoder.Audio_both
+    ( decoder ~decode_float:Opus.Decoder.decode_float
+        ~make_float:(fun len -> Array.make len 0.)
+        ~sub_float:Array.sub,
+      decoder ~decode_float:Opus.Decoder.decode_float_ba
+        ~make_float:(Bigarray.Array1.create Bigarray.float32 Bigarray.c_layout)
+        ~sub_float:Bigarray.Array1.sub )
 
-let register () =
-  Hashtbl.add Ogg_decoder.ogg_decoders "opus"
-    ( check,
-      fun os ->
-        Ogg_decoder.Audio
-          (decoder ~decode_float:Opus.Decoder.decode_float
-             ~make_float:(fun len -> Array.make len 0.)
-             ~sub_float:Array.sub os) );
-  Hashtbl.add Ogg_decoder.ogg_decoders "opus"
-    ( check,
-      fun os ->
-        Ogg_decoder.Audio_ba
-          (decoder ~decode_float:Opus.Decoder.decode_float_ba
-             ~make_float:
-               (Bigarray.Array1.create Bigarray.float32 Bigarray.c_layout)
-             ~sub_float:Bigarray.Array1.sub os) )
+let register () = Hashtbl.add Ogg_decoder.ogg_decoders "opus" (check, decoder)
