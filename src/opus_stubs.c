@@ -492,11 +492,7 @@ static char header_packet[19] = {
 static void pack_header(ogg_packet *op, opus_int32 sr, int channels,
                         opus_int16 pre_skip, opus_int16 gain) {
   op->bytes = sizeof(header_packet);
-  op->packet = malloc(op->bytes);
-  if (op->packet == NULL)
-    caml_raise_out_of_memory();
-
-  memcpy(op->packet, header_packet, op->bytes);
+  op->packet = header_packet;
 
   /* Now fill data. */
   op->packet[9] = channels;
@@ -592,6 +588,8 @@ CAMLprim value ocaml_opus_encoder_create(value _skip, value _comments,
   Store_field(ans, 0, _enc);
   Store_field(ans, 1, value_of_packet(&header));
   Store_field(ans, 2, value_of_packet(&comments));
+
+  free(comments.packet);
 
   CAMLreturn(ans);
 }
