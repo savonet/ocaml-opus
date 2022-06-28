@@ -1,4 +1,4 @@
-0.2.2 (unreleased)
+0.2.2 (28-06-2022)
 =====
 - Added bigarray API.
 - Fix memory leak in header packets.

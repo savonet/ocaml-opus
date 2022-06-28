@@ -477,7 +477,7 @@ static value value_of_application(opus_int32 a) {
   }
 }
 
-static char header_packet[19] = {
+static unsigned char header_packet[19] = {
     /* Identifier. */
     'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
     /* version, channels count, pre-skip (16 bits, unsigned,
