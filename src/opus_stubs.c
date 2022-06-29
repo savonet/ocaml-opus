@@ -359,9 +359,9 @@ CAMLprim value ocaml_opus_decoder_decode_float_byte(value *argv, int argn) {
                                          argv[4], argv[5]);
 }
 
-CAMLprim value ocaml_opus_decoder_decode_float_ba(value _dec, value _os, value buf,
-                                               value _ofs, value _len,
-                                               value _fec) {
+CAMLprim value ocaml_opus_decoder_decode_float_ba(value _dec, value _os,
+                                                  value buf, value _ofs,
+                                                  value _len, value _fec) {
   CAMLparam3(_dec, _os, buf);
   CAMLlocal1(chan);
   ogg_stream_state *os = Stream_state_val(_os);
@@ -416,7 +416,8 @@ CAMLprim value ocaml_opus_decoder_decode_float_ba(value _dec, value _os, value b
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < ret; i++)
-         ((float *)Caml_ba_data_val(chan))[ofs + total_samples + i] = pcm[i * chans + c];
+        ((float *)Caml_ba_data_val(chan))[ofs + total_samples + i] =
+            pcm[i * chans + c];
     }
     total_samples += ret;
     len -= ret;
@@ -428,7 +429,7 @@ CAMLprim value ocaml_opus_decoder_decode_float_ba(value _dec, value _os, value b
 
 CAMLprim value ocaml_opus_decoder_decode_float_ba_byte(value *argv, int argn) {
   return ocaml_opus_decoder_decode_float_ba(argv[0], argv[1], argv[2], argv[3],
-                                         argv[4], argv[5]);
+                                            argv[4], argv[5]);
 }
 
 /***** Encoder *****/
