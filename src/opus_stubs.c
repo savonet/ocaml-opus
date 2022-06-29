@@ -754,7 +754,7 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
   if (data == NULL)
     caml_raise_out_of_memory();
   float *pcm = malloc(chans * frame_size * sizeof(float));
-  if (data == NULL)
+  if (pcm == NULL)
     caml_raise_out_of_memory();
   int i, j, c;
   int ret;
@@ -772,8 +772,8 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
     if (ret < 0) {
       free(pcm);
       free(data);
+      check(ret);
     }
-    check(ret);
 
     /* From the documentation: If the return value is 1 byte,
      * then the packet does not need to be transmitted (DTX). */
@@ -789,9 +789,11 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
-    if (ogg_stream_packetin(os, &op) != 0)
+    if (ogg_stream_packetin(os, &op) != 0) {
+      free(pcm);
+      free(data);
       caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
-    ;
+    }
   }
   free(pcm);
   free(data);
@@ -832,7 +834,7 @@ CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
   if (data == NULL)
     caml_raise_out_of_memory();
   float *pcm = malloc(chans * frame_size * sizeof(float));
-  if (data == NULL)
+  if (pcm == NULL)
     caml_raise_out_of_memory();
   int i, j, c;
   int ret;
@@ -850,8 +852,8 @@ CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
     if (ret < 0) {
       free(pcm);
       free(data);
+      check(ret);
     }
-    check(ret);
 
     /* From the documentation: If the return value is 1 byte,
      * then the packet does not need to be transmitted (DTX). */
@@ -867,9 +869,11 @@ CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
-    if (ogg_stream_packetin(os, &op) != 0)
+    if (ogg_stream_packetin(os, &op) != 0) {
+      free(pcm);
+      free(data);
       caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
-    ;
+    }
   }
   free(pcm);
   free(data);
