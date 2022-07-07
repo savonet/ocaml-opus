@@ -16,6 +16,7 @@
   conf-libogg
   conf-libopus
   conf-pkg-config
+  (ocaml (>= 4.08.0))
   dune
   dune-configurator
   (ogg (>= 0.7.1)))
