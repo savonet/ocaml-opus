@@ -2,7 +2,7 @@
  (name opus)
  (public_name opus)
  (synopsis "OCaml bindings for libopus")
- (libraries ogg)
+ (libraries bigarray ogg)
  (modules opus)
  (foreign_stubs
   (language c)
