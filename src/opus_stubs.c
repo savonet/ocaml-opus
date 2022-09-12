@@ -175,7 +175,7 @@ CAMLprim value ocaml_opus_comments(value packet) {
     check(OPUS_INVALID_PACKET);
 
   opus_int32 vendor_length =
-      int32le_to_native((opus_int32) * (op->packet + off));
+      int32le_to_native(*((opus_int32 *)(op->packet + off)));
   off += 4;
 
   if (off + vendor_length > op->bytes)
@@ -192,7 +192,7 @@ CAMLprim value ocaml_opus_comments(value packet) {
     check(OPUS_INVALID_PACKET);
 
   opus_int32 comments_length =
-      int32le_to_native((opus_int32) * (op->packet + off));
+      int32le_to_native(*((opus_int32 *)(op->packet + off)));
   off += 4;
 
   comments = caml_alloc_tuple(comments_length);
@@ -202,7 +202,7 @@ CAMLprim value ocaml_opus_comments(value packet) {
     if (off + 4 > op->bytes)
       check(OPUS_INVALID_PACKET);
 
-    len = int32le_to_native((opus_int32) * (op->packet + off));
+    len = int32le_to_native(*((opus_int32 *)(op->packet + off)));
     off += 4;
 
     if (off + len > op->bytes)

@@ -1,5 +1,5 @@
 (lang dune 2.8)
-(version 0.2.2)
+(version 0.2.3)
 (name opus)
 (source (github savonet/ocaml-opus))
 (license GPL-2.0)

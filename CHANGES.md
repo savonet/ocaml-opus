@@ -1,3 +1,7 @@
+0.2.3 (unreleased)
+=====
+* Fixed comments parsing.
+
 0.2.2 (28-06-2022)
 =====
 - Added bigarray API.
