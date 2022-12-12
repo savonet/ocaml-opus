@@ -36,6 +36,18 @@
 #define int16le_to_native(x) x
 #endif
 
+static inline double clip(double s) {
+  // NaN
+  if (s != s) return 0;
+
+  if (s < -1) {
+    return -1;
+  } else if (s > 1) {
+    return 1;
+  } else
+    return s;
+}
+
 /* polymorphic variant utility macro */
 #define get_var(x) caml_hash_variant(#x)
 
@@ -344,7 +356,7 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < ret; i++)
-        Store_double_field(chan, ofs + total_samples + i, pcm[i * chans + c]);
+        Store_double_field(chan, ofs + total_samples + i, clip(pcm[i * chans + c]));
     }
     total_samples += ret;
     len -= ret;
@@ -764,7 +776,7 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
     for (j = 0; j < frame_size; j++)
       for (c = 0; c < chans; c++)
         pcm[chans * j + c] =
-            Double_field(Field(buf, c), off + j + i * frame_size);
+            clip(Double_field(Field(buf, c), off + j + i * frame_size));
 
     caml_release_runtime_system();
     ret = opus_encode_float(enc, pcm, frame_size, data, max_data_bytes);
