@@ -38,7 +38,8 @@
 
 static inline double clip(double s) {
   // NaN
-  if (s != s) return 0;
+  if (s != s)
+    return 0;
 
   if (s < -1) {
     return -1;
@@ -356,7 +357,8 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < ret; i++)
-        Store_double_field(chan, ofs + total_samples + i, clip(pcm[i * chans + c]));
+        Store_double_field(chan, ofs + total_samples + i,
+                           clip(pcm[i * chans + c]));
     }
     total_samples += ret;
     len -= ret;
@@ -746,8 +748,9 @@ CAMLprim value ocaml_opus_encoder_ctl(value ctl, value _enc) {
   caml_failwith("Unknown opus error");
 }
 
-CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
-                                       value buf, value _off, value _len) {
+CAMLprim value ocaml_opus_encode_float(value _frame_size,
+                                       value _enc, value _os, value buf,
+                                       value _off, value _len) {
   CAMLparam3(_enc, buf, _os);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
@@ -798,7 +801,8 @@ CAMLprim value ocaml_opus_encode_float(value _frame_size, value _enc, value _os,
 
     op.bytes = ret;
     op.packet = data;
-    op.b_o_s = op.e_o_s = 0;
+    op.b_o_s = 0;
+    op.e_o_s = 0;
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
@@ -819,9 +823,9 @@ CAMLprim value ocaml_opus_encode_float_byte(value *argv, int argn) {
                                  argv[5]);
 }
 
-CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
-                                          value _os, value buf, value _ofs,
-                                          value _len) {
+CAMLprim value ocaml_opus_encode_float_ba(value _frame_size,
+                                          value _enc, value _os, value buf,
+                                          value _ofs, value _len) {
   CAMLparam3(_enc, buf, _os);
   encoder_t *handler = Enc_val(_enc);
   OpusEncoder *enc = handler->encoder;
@@ -878,7 +882,8 @@ CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
 
     op.bytes = ret;
     op.packet = data;
-    op.b_o_s = op.e_o_s = 0;
+    op.b_o_s = 0;
+    op.e_o_s = 0;
     op.packetno = handler->packetno;
     op.granulepos = handler->granulepos;
 
@@ -897,25 +902,4 @@ CAMLprim value ocaml_opus_encode_float_ba(value _frame_size, value _enc,
 CAMLprim value ocaml_opus_encode_float_ba_byte(value *argv, int argn) {
   return ocaml_opus_encode_float_ba(argv[0], argv[1], argv[2], argv[3], argv[4],
                                     argv[5]);
-}
-
-CAMLprim value ocaml_opus_encode_eos(value _os, value _enc) {
-  CAMLparam2(_os, _enc);
-  ogg_stream_state *os = Stream_state_val(_os);
-  ogg_packet op;
-  encoder_t *handler = Enc_val(_enc);
-  handler->packetno++;
-
-  op.bytes = 0;
-  op.packet = NULL;
-  op.b_o_s = 0;
-  op.e_o_s = 1;
-  op.packetno = handler->packetno;
-  op.granulepos = handler->granulepos;
-
-  if (ogg_stream_packetin(os, &op) != 0)
-    caml_raise_constant(*caml_named_value("ogg_exn_internal_error"));
-  ;
-
-  CAMLreturn(Val_unit);
 }
