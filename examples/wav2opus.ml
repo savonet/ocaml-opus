@@ -175,8 +175,15 @@ let _ =
       done
     with End_of_file -> ()
   end;
-  List.iter (fun (ph, pb) ->
-     output_string oc (ph ^ pb)) (Ogg.Stream.terminate os);
+  Encoder.eos enc;
+  begin
+    try
+      while true do
+        let ph, pb = Ogg.Stream.get_page os in
+        output_string oc (ph ^ pb)
+      done
+    with Ogg.Not_enough_data -> ()
+  end;
   close_in ic;
   close_out oc;
   Printf.printf "Finished in %.0f seconds.\n" (Unix.time () -. start);

@@ -5,7 +5,7 @@ exception Unimplemented
 exception Invalid_state
 exception Alloc_fail
 
-(** Recommended size of a frame in samples. Buffers for decoding are typically of
+(** Recommended size of a frame in sample. Buffers for decoding are typically of
     this size. *)
 val recommended_frame_size : int
 
@@ -107,12 +107,7 @@ module Encoder : sig
   val apply_control : control -> t -> unit
 
   val encode_float :
-    ?frame_size:float ->
-    t ->
-    float array array ->
-    int ->
-    int ->
-    int
+    ?frame_size:float -> t -> float array array -> int -> int -> int
 
   val encode_float_ba :
     ?frame_size:float ->
@@ -121,4 +116,6 @@ module Encoder : sig
     int ->
     int ->
     int
+
+  val eos : t -> unit
 end

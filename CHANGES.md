@@ -1,8 +1,6 @@
-0.3.0 (unreleased)
+0.2.3 (unreleased)
 =====
 * Fixed comments parsing.
-* Removed `eos` to avoid using a NULL eos ogg packet
-  to be compliant with demuxers such as FFmpeg.
 
 0.2.2 (28-06-2022)
 =====

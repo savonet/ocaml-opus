@@ -97,8 +97,7 @@ module Decoder = struct
     int ->
     bool ->
     int
-    = "ocaml_opus_decoder_decode_float_ba_byte"
-      "ocaml_opus_decoder_decode_float_ba"
+    = "ocaml_opus_decoder_decode_float_ba_byte" "ocaml_opus_decoder_decode_float_ba"
 
   let decode_float_ba ?(decode_fec = false) t os buf ofs len =
     decode_float_ba t.decoder os buf ofs len decode_fec
@@ -204,4 +203,8 @@ module Encoder = struct
 
   let encode_float = mk_encode_float encode_float
   let encode_float_ba = mk_encode_float encode_float_ba
+
+  external eos : Ogg.Stream.stream -> encoder -> unit = "ocaml_opus_encode_eos"
+
+  let eos t = eos t.os t.enc
 end
