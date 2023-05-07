@@ -97,7 +97,8 @@ module Decoder = struct
     int ->
     bool ->
     int
-    = "ocaml_opus_decoder_decode_float_ba_byte" "ocaml_opus_decoder_decode_float_ba"
+    = "ocaml_opus_decoder_decode_float_ba_byte"
+      "ocaml_opus_decoder_decode_float_ba"
 
   let decode_float_ba ?(decode_fec = false) t os buf ofs len =
     decode_float_ba t.decoder os buf ofs len decode_fec

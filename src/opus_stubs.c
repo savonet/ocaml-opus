@@ -38,7 +38,8 @@
 
 static inline double clip(double s) {
   // NaN
-  if (s != s) return 0;
+  if (s != s)
+    return 0;
 
   if (s < -1) {
     return -1;
@@ -356,7 +357,8 @@ CAMLprim value ocaml_opus_decoder_decode_float(value _dec, value _os, value buf,
     for (c = 0; c < chans; c++) {
       chan = Field(buf, c);
       for (i = 0; i < ret; i++)
-        Store_double_field(chan, ofs + total_samples + i, clip(pcm[i * chans + c]));
+        Store_double_field(chan, ofs + total_samples + i,
+                           clip(pcm[i * chans + c]));
     }
     total_samples += ret;
     len -= ret;
