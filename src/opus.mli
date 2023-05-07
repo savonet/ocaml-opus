@@ -118,4 +118,8 @@ module Encoder : sig
     int
 
   val eos : t -> unit
+    [@@alert
+      deprecated
+        "This function generates invalid bitstream. Please use \
+         Ogg.Stream.terminate instead!"]
 end

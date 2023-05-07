@@ -1,6 +1,7 @@
 0.2.3 (unreleased)
 =====
 * Fixed comments parsing.
+* Deprecated `Encoder.eos`
 
 0.2.2 (28-06-2022)
 =====
