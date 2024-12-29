@@ -23,7 +23,7 @@ let check = Opus.Decoder.check_packet
 let buflen = Opus.recommended_frame_size
 let decoder_samplerate = ref 48000
 
-let decoder os =
+let decoder ~fill:_ os =
   let decoder = ref None in
   let packet1 = ref None in
   let packet2 = ref None in
@@ -60,7 +60,7 @@ let decoder os =
     let _, chans, meta = init () in
     ({ Ogg_decoder.channels = chans; sample_rate = !decoder_samplerate }, meta)
   in
-  let restart new_os =
+  let restart ~fill:_ new_os =
     os := new_os;
     decoder := None;
     ignore (init ())

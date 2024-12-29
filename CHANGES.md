@@ -2,6 +2,7 @@
 =====
 * Fixed comments parsing.
 * Deprecated `Encoder.eos`
+* Adapt to API `0.8.0` of ocaml-ogg.
 
 0.2.2 (28-06-2022)
 =====
